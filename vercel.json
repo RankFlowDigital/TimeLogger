@@ -1,5 +1,11 @@
 {
   "installCommand": "python -m pip install --upgrade pip && python -m pip install -r requirements.txt",
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    }
+  ],
   "crons": [
     {
       "path": "/api/internal/rollcall-tick",
