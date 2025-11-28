@@ -27,8 +27,77 @@
     </nav>
     {% endif %}
 </header>
-<main>
-    {% block content %}{% endblock %}
-</main>
+<div class="app-shell {% if not user %}app-shell--solo{% endif %}">
+    <main class="app-content">
+        {% block content %}{% endblock %}
+    </main>
+    {% if user %}
+    <aside class="chat-dock" id="chat-dock">
+        <div class="chat-tabs" role="tablist">
+            <button class="chat-tab active" data-chat-tab="team" type="button">Team Chat Space</button>
+            <button class="chat-tab" data-chat-tab="dm-1" type="button">DM's</button>
+            <button class="chat-tab" data-chat-tab="dm-2" type="button">DM's</button>
+        </div>
+        <div class="chat-panels">
+            <section class="chat-panel active" data-chat-panel="team" role="tabpanel">
+                <div class="chat-panel-body">
+                    <div class="rollcall-banner" id="rollcall-panel" hidden>
+                        <div>
+                            <p>Roll call in progress</p>
+                            <p class="muted"><span data-rollcall-deadline>Respond promptly</span></p>
+                        </div>
+                        <button id="rollcall-respond" type="button">I'm here</button>
+                    </div>
+                    <div class="chat-messages" data-chat-messages="team"></div>
+                    <form data-chat-form="team">
+                        <label class="sr-only" for="dock-chat-input">Message</label>
+                        <textarea id="dock-chat-input" name="content" rows="3" placeholder="Write a message..."></textarea>
+                        <button type="submit">Send</button>
+                    </form>
+                    <section class="team-ops">
+                        <div>
+                            <h3>Team presence</h3>
+                            <ul class="team-roster" data-team-roster></ul>
+                        </div>
+                        <div>
+                            <h3>Invite teammate</h3>
+                            <form class="invite-form" data-invite-form>
+                                <input type="text" name="full_name" placeholder="Full name" required>
+                                <input type="email" name="email" placeholder="Email" required>
+                                <select name="role">
+                                    <option value="MEMBER">Member</option>
+                                    <option value="ADMIN">Admin</option>
+                                </select>
+                                <select name="timezone" data-invite-timezone>
+                                    <option value="">No timezone preference</option>
+                                </select>
+                                <button type="submit">Send invite</button>
+                                <p class="form-feedback" data-invite-feedback></p>
+                            </form>
+                        </div>
+                        <div>
+                            <h3>Roll-call log</h3>
+                            <ul class="rollcall-log" data-rollcall-log></ul>
+                        </div>
+                    </section>
+                </div>
+            </section>
+            <section class="chat-panel" data-chat-panel="dm-1" role="tabpanel" aria-hidden="true">
+                <div class="chat-panel-body chat-panel-empty">
+                    <p>Direct messages are coming soon. For now, use the team chat space.</p>
+                </div>
+            </section>
+            <section class="chat-panel" data-chat-panel="dm-2" role="tabpanel" aria-hidden="true">
+                <div class="chat-panel-body chat-panel-empty">
+                    <p>Need 1:1 support? DM channels will launch shortly.</p>
+                </div>
+            </section>
+        </div>
+    </aside>
+    {% endif %}
+</div>
+{% if user %}
+<script defer src="/static/js/chat.js"></script>
+{% endif %}
 </body>
 </html>

@@ -75,6 +75,7 @@ async def signup(
         "org_id": user.org_id,
         "role": user.role,
         "full_name": user.full_name,
+        "timezone": user.timezone,
     }
     return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
 
@@ -105,6 +106,7 @@ async def login(
         "org_id": user.org_id,
         "role": user.role,
         "full_name": user.full_name,
+        "timezone": user.timezone,
     }
     return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
 

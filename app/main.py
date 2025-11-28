@@ -15,6 +15,7 @@ from .routers import (
     reports,
     roll_calls,
     sessions,
+    users,
 )
 
 settings = get_settings()
@@ -41,3 +42,4 @@ app.include_router(chat.router)
 app.include_router(roll_calls.router)
 app.include_router(admin.router)
 app.include_router(reports.router)
+app.include_router(users.router)

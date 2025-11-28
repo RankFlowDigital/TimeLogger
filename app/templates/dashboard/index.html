@@ -1,37 +1,104 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="panel">
-    <h2>Welcome, {{ user.full_name }}</h2>
-    <div class="status-row">
-        <p>Current status: <strong>{{ open_session.session_type if open_session else "OFFLINE" }}</strong></p>
-        {% if open_session %}
-        <p>Since {{ open_session.started_at.strftime('%H:%M') }}</p>
-        {% endif %}
-    </div>
-    <div class="actions">
-        <button data-action="start-work">Start Work</button>
-        <button data-action="stop-work">Stop Work</button>
-        <button data-action="start-lunch">Start Lunch</button>
-        <button data-action="end-lunch">End Lunch</button>
-        <button data-action="start-break">Start Break</button>
-        <button data-action="end-break">End Break</button>
-    </div>
-</section>
-<section class="panel">
-    <h3>Today</h3>
-    <ul>
-        <li>Work minutes: {{ summary.work_minutes }}</li>
-        <li>Lunch minutes: {{ summary.lunch_minutes }}</li>
-        <li>Short breaks: {{ summary.short_break_minutes }}</li>
-        <li>Overbreak: {{ summary.overbreak_minutes }}</li>
-        <li>Roll-call deduction: {{ summary.rollcall_deduction_minutes }}</li>
-        <li>Net hours: {{ '%.2f'|format(summary.net_hours) }}</li>
-    </ul>
-</section>
-<section class="panel" id="rollcall-panel" hidden>
-    <h3>Roll Call</h3>
-    <p>You have been selected! Respond within 5 minutes.</p>
-    <button id="rollcall-respond">I'm here</button>
-</section>
-<script defer src="/static/js/rollcall.js"></script>
+<div class="dashboard-grid">
+    <section class="card hero">
+        <header class="hero-headline">
+            <div>
+                <p class="eyebrow">Team Monitor</p>
+                <h1>Welcome, {{ user.full_name }}</h1>
+                <p class="status-line">
+                    <span class="status-badge" data-status-badge>--</span>
+                    <span class="status-meta" data-status-meta>Awaiting first action</span>
+                </p>
+            </div>
+            <div class="hero-clock">
+                <p class="clock-label">Live Clock</p>
+                <p class="clock-time" data-live-clock>--:--</p>
+                <p class="clock-zone" data-timezone-display>--</p>
+            </div>
+        </header>
+        <div class="hero-metrics">
+            <article class="metric" data-summary-metric="work_minutes">
+                <p>Work minutes</p>
+                <strong>0</strong>
+            </article>
+            <article class="metric" data-summary-metric="lunch_minutes">
+                <p>Lunch minutes</p>
+                <strong>0</strong>
+            </article>
+            <article class="metric" data-summary-metric="short_break_minutes">
+                <p>Break minutes</p>
+                <strong>0</strong>
+            </article>
+            <article class="metric" data-summary-metric="net_hours">
+                <p>Net hours</p>
+                <strong>0.00</strong>
+            </article>
+        </div>
+    </section>
+
+    <section class="card controls-card">
+        <header>
+            <h2>Realtime session controls</h2>
+            <p class="muted">Each action instantly updates the log and chat space.</p>
+        </header>
+        <div class="controls-grid" data-session-controls>
+            <button data-action="start-work">Start Work</button>
+            <button data-action="stop-work">Stop Work</button>
+            <button data-action="start-lunch">Start Lunch</button>
+            <button data-action="end-lunch">End Lunch</button>
+            <button data-action="start-break">Start Break</button>
+            <button data-action="end-break">End Break</button>
+        </div>
+        <div class="timezone-panel">
+            <div>
+                <label for="timezone-select">Display timezone</label>
+                <select id="timezone-select" data-timezone-select></select>
+            </div>
+            <div class="timezone-actions">
+                <button type="button" data-timezone-reset>Use device time</button>
+                <button type="button" class="secondary" data-timezone-save>Save preference</button>
+            </div>
+            <p class="timezone-feedback" data-timezone-feedback></p>
+        </div>
+    </section>
+
+    <section class="card timeline-card">
+        <header>
+            <h2>Today&apos;s timeline</h2>
+            <p class="muted">Click an action to see details.</p>
+        </header>
+        <ol class="timeline" data-timeline></ol>
+    </section>
+
+    <section class="card insights-card">
+        <header>
+            <h2>Operational summary</h2>
+            <p class="muted">Lunch, break, and roll-call insights.</p>
+        </header>
+        <dl class="insights-list">
+            <div>
+                <dt>Lunch minutes</dt>
+                <dd data-summary-metric="lunch_minutes">0</dd>
+            </div>
+            <div>
+                <dt>Break minutes</dt>
+                <dd data-summary-metric="short_break_minutes">0</dd>
+            </div>
+            <div>
+                <dt>Overbreak</dt>
+                <dd data-summary-metric="overbreak_minutes">0</dd>
+            </div>
+            <div>
+                <dt>Roll-call deductions</dt>
+                <dd data-summary-metric="rollcall_deduction_minutes">0</dd>
+            </div>
+        </dl>
+        <section class="activity-log">
+            <h3>Activity log</h3>
+            <ul data-activity-log></ul>
+        </section>
+    </section>
+</div>
+<script id="dashboard-state" type="application/json">{{ dashboard_state | tojson | safe }}</script>
 {% endblock %}

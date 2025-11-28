@@ -1,7 +1,10 @@
 const rollcallPanel = document?.getElementById("rollcall-panel");
 const rollcallButton = document?.getElementById("rollcall-respond");
+const rollcallDeadlineText = document?.querySelector("[data-rollcall-deadline]");
 let activeRollCallId = null;
 let audio;
+let deadlineAt = null;
+let countdownHandle = null;
 
 async function pollRollCall() {
   try {
@@ -10,6 +13,7 @@ async function pollRollCall() {
     const data = await res.json();
     if (data.pending && (!activeRollCallId || data.pending.id !== activeRollCallId)) {
       activeRollCallId = data.pending.id;
+      deadlineAt = new Date(data.pending.deadline_at);
       showRollCall();
     } else if (!data.pending) {
       hideRollCall();
@@ -22,6 +26,7 @@ async function pollRollCall() {
 function showRollCall() {
   if (!rollcallPanel) return;
   rollcallPanel.hidden = false;
+  startCountdown();
   if (!audio) {
     audio = new Audio("/static/sounds/rollcall.mp3");
   }
@@ -32,6 +37,32 @@ function hideRollCall() {
   if (!rollcallPanel) return;
   rollcallPanel.hidden = true;
   activeRollCallId = null;
+  deadlineAt = null;
+  if (countdownHandle) {
+    clearInterval(countdownHandle);
+    countdownHandle = null;
+  }
+  if (rollcallDeadlineText) {
+    rollcallDeadlineText.textContent = "You're clear";
+  }
+}
+
+function startCountdown() {
+  if (!rollcallDeadlineText) return;
+  const update = () => {
+    if (!deadlineAt) return;
+    const now = new Date();
+    const diff = Math.max(0, Math.floor((deadlineAt - now) / 1000));
+    const minutes = Math.floor(diff / 60);
+    const seconds = diff % 60;
+    rollcallDeadlineText.textContent = `Respond within ${minutes}:${seconds.toString().padStart(2, "0")}`;
+    if (diff <= 0) {
+      rollcallDeadlineText.textContent = "Deadline passed";
+    }
+  };
+  update();
+  if (countdownHandle) clearInterval(countdownHandle);
+  countdownHandle = setInterval(update, 1000);
 }
 
 rollcallButton?.addEventListener("click", async () => {
@@ -43,7 +74,7 @@ rollcallButton?.addEventListener("click", async () => {
   });
   if (res.ok) {
     hideRollCall();
-    window.location.reload();
+    window.dashboardRuntime?.refresh();
   }
 });
 

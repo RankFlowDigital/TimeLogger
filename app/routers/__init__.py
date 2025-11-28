@@ -1,4 +1,4 @@
-from . import admin, auth, chat, dashboard, reports, roll_calls, sessions
+from . import admin, auth, chat, dashboard, reports, roll_calls, sessions, users
 
 __all__ = [
     "admin",
@@ -8,4 +8,5 @@ __all__ = [
     "reports",
     "roll_calls",
     "sessions",
+    "users",
 ]

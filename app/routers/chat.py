@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Message
+from ..models import Message, User
 
 router = APIRouter(tags=["chat"])
 templates = Path(__file__).resolve().parents[1] / "templates"
@@ -45,11 +45,18 @@ async def fetch_messages(request: Request, since: str | None = None, db: Session
         except ValueError:
             pass
     messages = query.limit(100).all()
+    user_lookup = {}
+    if messages:
+        member_ids = {m.user_id for m in messages}
+        members = db.query(User).filter(User.id.in_(member_ids)).all()
+        user_lookup = {member.id: member for member in members}
     return JSONResponse({
         "messages": [
             {
                 "id": m.id,
                 "user_id": m.user_id,
+                "user_name": user_lookup.get(m.user_id).full_name if user_lookup.get(m.user_id) else "Unknown",
+                "user_role": user_lookup.get(m.user_id).role if user_lookup.get(m.user_id) else None,
                 "content": m.content,
                 "created_at": m.created_at.isoformat(),
             }
