@@ -68,7 +68,7 @@ Then open `http://localhost:8000`, sign up (first user becomes OWNER), add shift
 > **Neon tip:** set `DATABASE_URL` in `.env` to the Neon connection string before starting `uvicorn` so the local server talks to the managed database.
 
 ## Vercel Deployment Notes
-- The root `vercel.json` pins the API to Vercel's Python 3.11 runtime and keeps the two cron routes online.
+- `vercel.json` only defines the cron routes and the safer install command—Vercel automatically detects the Python 3.11 runtime when it finds `api/index.py`.
 - In the Vercel dashboard, set the **Install Command** to `python -m pip install --upgrade pip && python -m pip install -r requirements.txt`. No build command/output directory is required for this serverless deployment.
 - Environment variables (`SECRET_KEY`, `DATABASE_URL`, `ROLLCALL_TICK_TOKEN`, etc.) must be created in Project Settings → Environment Variables before deploying.
 
