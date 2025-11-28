@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel chat-panel">
+    <h2>Team Chat</h2>
+    <div id="chat-messages">
+        {% for message in messages %}
+        <div class="message"><strong>User {{ message.user_id }}:</strong> {{ message.content }} <span>{{ message.created_at }}</span></div>
+        {% endfor %}
+    </div>
+    <form id="chat-form">
+        <textarea name="content" rows="3" placeholder="Write a message..."></textarea>
+        <button type="submit">Send</button>
+    </form>
+</section>
+<script defer src="/static/js/chat.js"></script>
+{% endblock %}

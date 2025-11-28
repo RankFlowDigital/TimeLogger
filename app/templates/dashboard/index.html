@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+    <h2>Welcome, {{ user.full_name }}</h2>
+    <div class="status-row">
+        <p>Current status: <strong>{{ open_session.session_type if open_session else "OFFLINE" }}</strong></p>
+        {% if open_session %}
+        <p>Since {{ open_session.started_at.strftime('%H:%M') }}</p>
+        {% endif %}
+    </div>
+    <div class="actions">
+        <button data-action="start-work">Start Work</button>
+        <button data-action="stop-work">Stop Work</button>
+        <button data-action="start-lunch">Start Lunch</button>
+        <button data-action="end-lunch">End Lunch</button>
+        <button data-action="start-break">Start Break</button>
+        <button data-action="end-break">End Break</button>
+    </div>
+</section>
+<section class="panel">
+    <h3>Today</h3>
+    <ul>
+        <li>Work minutes: {{ summary.work_minutes }}</li>
+        <li>Lunch minutes: {{ summary.lunch_minutes }}</li>
+        <li>Short breaks: {{ summary.short_break_minutes }}</li>
+        <li>Overbreak: {{ summary.overbreak_minutes }}</li>
+        <li>Roll-call deduction: {{ summary.rollcall_deduction_minutes }}</li>
+        <li>Net hours: {{ '%.2f'|format(summary.net_hours) }}</li>
+    </ul>
+</section>
+<section class="panel" id="rollcall-panel" hidden>
+    <h3>Roll Call</h3>
+    <p>You have been selected! Respond within 5 minutes.</p>
+    <button id="rollcall-respond">I'm here</button>
+</section>
+<script defer src="/static/js/rollcall.js"></script>
+{% endblock %}

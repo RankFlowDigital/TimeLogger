@@ -1,0 +1,12 @@
+body{font-family:Arial,Helvetica,sans-serif;background:#f4f5f7;margin:0;color:#1f2933;}a{text-decoration:none;color:#2563eb;}main{padding:2rem;}header.site-header{display:flex;justify-content:space-between;align-items:center;padding:1rem 2rem;background:#111827;color:#fff;}header nav a,header nav button{margin-right:1rem;color:#fff;background:none;border:none;cursor:pointer;font-size:1rem;}header nav form{display:inline;}button{background:#2563eb;color:#fff;border:none;padding:0.5rem 1rem;border-radius:4px;cursor:pointer;}button:hover{background:#1d4ed8;}section.panel{background:#fff;padding:1.5rem;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05);margin-bottom:1rem;}table{width:100%;border-collapse:collapse;}table th,table td{padding:0.5rem;border-bottom:1px solid #e5e7eb;text-align:left;}#chat-messages{max-height:300px;overflow-y:auto;margin-bottom:1rem;border:1px solid #e5e7eb;padding:1rem;background:#fefefe;}#chat-messages .message{margin-bottom:0.75rem;}form label{display:block;margin-bottom:0.75rem;}form input,form textarea,form select{width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:4px;}form textarea{resize:vertical;}section.auth-card{max-width:400px;margin:3rem auto;background:#fff;padding:2rem;border-radius:12px;box-shadow:0 5px 25px rgba(15,23,42,0.1);}section.auth-card h1{text-align:center;}p.error{color:#dc2626;}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem;}
+.form-grid button{align-self:end;}
+.button-link{display:inline-block;margin-left:0.5rem;padding:0.4rem 0.75rem;border-radius:4px;background:#e5e7eb;color:#111827;font-size:0.9rem;}
+.button-link:hover{background:#cbd5f5;}
+.alert{padding:0.75rem 1rem;border-radius:6px;margin-bottom:1rem;font-weight:600;}
+.alert.success{background:#d1fae5;color:#065f46;}
+.form-inline{display:flex;flex-wrap:wrap;gap:0.75rem;align-items:flex-end;margin-top:1rem;}
+.form-inline label{flex:1 1 100%;margin-bottom:0.25rem;}
+.form-inline input{flex:1 1 160px;max-width:220px;}
+.help-text{font-size:0.9rem;color:#6b7280;margin-top:0.5rem;}
+.muted{color:#6b7280;}

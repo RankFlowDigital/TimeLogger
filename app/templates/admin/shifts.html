@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+    <h2>Manage Shifts</h2>
+    <form method="post" action="/admin/shifts" class="form-grid">
+        <label>User
+            <select name="user_id" required>
+                {% for member in members %}
+                <option value="{{ member.id }}">{{ member.full_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Day of Week
+            <select name="day_of_week" required>
+                {% for idx, label in [(0,'Monday'),(1,'Tuesday'),(2,'Wednesday'),(3,'Thursday'),(4,'Friday'),(5,'Saturday'),(6,'Sunday')] %}
+                <option value="{{ idx }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Start Time<input type="time" name="start_time" required></label>
+        <label>End Time<input type="time" name="end_time" required></label>
+        <button type="submit">Add Shift</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Day</th>
+                <th>Start</th>
+                <th>End</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for shift in shifts %}
+            <tr>
+                <td>{{ member_lookup[shift.user_id].full_name if shift.user_id in member_lookup else shift.user_id }}</td>
+                <td>{{ ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][shift.day_of_week] }}</td>
+                <td>{{ shift.start_time.strftime('%H:%M') }}</td>
+                <td>{{ shift.end_time.strftime('%H:%M') }}</td>
+                <td>
+                    <form method="post" action="/admin/shifts/{{ shift.id }}/delete">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

@@ -1,0 +1,21 @@
+[project]
+name = "team-monitor"
+version = "0.1.0"
+description = "Self-hosted team monitoring & roll call system"
+authors = ["Jeff Kemmer"]
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn[standard]>=0.23.0",
+    "jinja2>=3.1.3",
+    "sqlalchemy>=2.0.28",
+    "psycopg[binary]>=3.1.12",
+    "pydantic>=2.6.1",
+    "pydantic-settings>=2.0.3",
+    "bcrypt>=4.0.1,<5.0",
+    "alembic>=1.13.1",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+    <h2>Daily Snapshot</h2>
+    <form method="get" class="form-grid">
+        <label>Date<input type="date" name="target_date" value="{{ target_date }}"></label>
+        <button type="submit">Load</button>
+    </form>
+    <ul>
+        <li>Work minutes: {{ summary.work_minutes }}</li>
+        <li>Lunch minutes: {{ summary.lunch_minutes }}</li>
+        <li>Short breaks: {{ summary.short_break_minutes }}</li>
+        <li>Overbreak: {{ summary.overbreak_minutes }}</li>
+        <li>Roll-call deductions: {{ summary.rollcall_deduction_minutes }}</li>
+        <li>Net hours: {{ '%.2f'|format(summary.net_hours) }}</li>
+    </ul>
+</section>
+
+<section class="panel">
+    <h3>Sessions</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Type</th>
+                <th>Start</th>
+                <th>End</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for session in sessions %}
+            <tr>
+                <td>{{ session.session_type }}</td>
+                <td>{{ session.started_at }}</td>
+                <td>{{ session.ended_at or 'Open' }}</td>
+            </tr>
+            {% endfor %}
+            {% if sessions|length == 0 %}
+            <tr><td colspan="3">No sessions logged.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</section>
+
+<section class="panel">
+    <h3>Roll Calls</h3>
+    <table>
+        <thead>
+            <tr><th>Triggered</th><th>Deadline</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+            {% for rc in roll_calls %}
+            <tr>
+                <td>{{ rc.triggered_at }}</td>
+                <td>{{ rc.deadline_at }}</td>
+                <td>{{ rc.result }}</td>
+            </tr>
+            {% endfor %}
+            {% if roll_calls|length == 0 %}
+            <tr><td colspan="3">No roll calls for this day.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

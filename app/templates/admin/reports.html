@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+    <h2>Reports</h2>
+    <form method="get" class="filters">
+        <label>Start<input type="date" name="start_date" value="{{ start_date }}"></label>
+        <label>End<input type="date" name="end_date" value="{{ end_date }}"></label>
+        <button type="submit">Apply</button>
+    </form>
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Total Hours</th>
+                <th>Overbreak</th>
+                <th>Roll-call Deduction</th>
+                <th>Net Hours</th>
+                <th>Sessions</th>
+                <th>Roll Calls</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for report in reports %}
+            <tr>
+                <td>{{ report.full_name }}</td>
+                <td>{{ '%.2f'|format(report.total_hours) }}</td>
+                <td>{{ report.overbreak_minutes }}</td>
+                <td>{{ report.rollcall_minutes }}</td>
+                <td>{{ '%.2f'|format(report.net_hours) }}</td>
+                <td>{{ report.sessions_count }}</td>
+                <td>P: {{ report.rollcall_passed }} / L: {{ report.rollcall_late }} / M: {{ report.rollcall_missed }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

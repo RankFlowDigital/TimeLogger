@@ -1,0 +1,17 @@
+{
+  "functions": {
+    "api/index.py": {
+      "runtime": "python3.11"
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/internal/rollcall-tick",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/internal/rollcall-expire",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

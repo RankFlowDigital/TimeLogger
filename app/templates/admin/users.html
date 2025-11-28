@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+{% if settings_updated %}
+<div class="alert success">Roll call frequency updated.</div>
+{% endif %}
+<section class="panel">
+    <h2>Roll Call Frequency</h2>
+    <p>Currently set to <strong>{{ rollcall_target }}</strong> roll calls per hour.</p>
+    {% if can_edit_rollcalls %}
+    <form method="post" action="/admin/settings/rollcalls" class="form-inline">
+        <label for="rollcalls_per_hour">Roll calls per hour (1-12)</label>
+        <input type="number" id="rollcalls_per_hour" name="rollcalls_per_hour" min="1" max="12" value="{{ rollcall_target }}" required>
+        <button type="submit">Save</button>
+    </form>
+    <p class="help-text">Spacing remains random between 5 and 16 minutes even after you change this number.</p>
+    {% else %}
+    <p class="muted">Only the organization owner can change this value.</p>
+    {% endif %}
+</section>
+<section class="panel">
+    <h2>Team Status</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Since</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in statuses %}
+            <tr>
+                <td>{{ item.user.full_name }}</td>
+                <td>{{ item.status }}</td>
+                <td>{{ item.since or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="panel">
+    <h2>Leaves & Day Offs</h2>
+    <form method="post" action="/admin/leaves" class="form-grid">
+        <label>User
+            <select name="user_id" required>
+                {% for member in members %}
+                <option value="{{ member.id }}">{{ member.full_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Date<input type="date" name="leave_date" required></label>
+        <label>Type
+            <select name="leave_type" required>
+                <option value="LEAVE">Leave</option>
+                <option value="DAY_OFF">Day Off</option>
+            </select>
+        </label>
+        <button type="submit">Add Entry</button>
+    </form>
+
+    <table>
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Date</th>
+                <th>Type</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for leave in leaves %}
+            <tr>
+                <td>{{ member_lookup[leave.user_id].full_name if leave.user_id in member_lookup else leave.user_id }}</td>
+                <td>{{ leave.date }}</td>
+                <td>{{ leave.type }}</td>
+                <td>
+                    <form method="post" action="/admin/leaves/{{ leave.id }}/delete">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}
