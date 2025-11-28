@@ -1,10 +1,10 @@
 {
-  "functions": {
-    "api/index.py": {
-      "runtime": "python3.9"
+  "builds": [
+    {
+      "src": "Dockerfile",
+      "use": "@vercel/docker"
     }
-  },
-  "installCommand": "python -m pip install --upgrade pip && python -m pip install -r requirements.txt",
+  ],
   "crons": [
     {
       "path": "/api/internal/rollcall-tick",
@@ -13,6 +13,12 @@
     {
       "path": "/api/internal/rollcall-expire",
       "schedule": "*/5 * * * *"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
     }
   ]
 }

@@ -67,6 +67,17 @@ Then open `http://localhost:8000`, sign up (first user becomes OWNER), add shift
 
 > **Neon tip:** set `DATABASE_URL` in `.env` to the Neon connection string before starting `uvicorn` so the local server talks to the managed database.
 
+## Docker Deployment
+
+You can run the entire stack inside a container (this is also how the Vercel deployment is configured now):
+
+```bash
+docker build -t timelogger .
+docker run --env-file .env -p 8000:8000 timelogger
+```
+
+Vercel will automatically build the provided `Dockerfile` using `@vercel/docker`, so no additional runtime hacks are needed—`pip`/Python versions are defined entirely inside the container image.
+
 ## Demo Seed (Optional)
 
 If you'd like instant demo data in your Neon (or local) database, run the helper script after setting `DATABASE_URL`:
