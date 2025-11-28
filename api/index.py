@@ -1,3 +1,4 @@
-from app.main import app as handler
+from app.main import app
 
-# Vercel expects `handler` as the ASGI callable
+# expose both names for compatibility
+handler = app
