@@ -70,26 +70,40 @@ const dashboardRuntime = (() => {
 
 window.dashboardRuntime = dashboardRuntime;
 
+const controlStore = {
+  buttons: new Map(),
+  feedbackEl: null,
+  timeout: null,
+};
+const actionSuccessMessages = {
+  "start-work": "Work session started",
+  "stop-work": "Work session ended",
+  "start-lunch": "Lunch started",
+  "end-lunch": "Lunch ended",
+  "start-break": "Break started",
+  "end-break": "Break ended",
+};
+
+const statusTicker = {
+  handle: null,
+  startAt: null,
+  target: null,
+  offsetMs: 0,
+};
+
 function formatDateTime(value, { includeDate = false } = {}) {
   if (!value) return "--";
   const date = value instanceof Date ? value : new Date(value);
   const options = includeDate
     ? { dateStyle: "medium", timeStyle: "short" }
     : { timeStyle: "short" };
-  try {
-    return new Intl.DateTimeFormat(undefined, {
-      ...options,
-      timeZone: dashboardRuntime.getDisplayTimezone(),
-    }).format(date);
-  } catch (err) {
-    console.error("format failed", err);
-    return date.toLocaleString();
-  }
+  return formatWithTimezone(date, options);
 }
 
 function renderStatus(state) {
   const badge = document.querySelector("[data-status-badge]");
   const meta = document.querySelector("[data-status-meta]");
+  statusTicker.target = document.querySelector("[data-status-duration]");
   if (!badge || !meta) return;
   const open = state?.open_session;
   const status = open ? open.type : "OFFLINE";
@@ -98,6 +112,13 @@ function renderStatus(state) {
   badge.dataset.status = status;
   badge.classList.toggle("offline", !open);
   meta.textContent = open ? `Since ${since}` : "No active session";
+  if (open) {
+    statusTicker.startAt = new Date(open.started_at);
+    statusTicker.offsetMs = open.type === "WORK" ? (state?.work_carry_seconds || 0) * 1000 : 0;
+    startStatusTicker();
+  } else {
+    stopStatusTicker();
+  }
 }
 
 function renderSummary(state) {
@@ -205,7 +226,7 @@ function startClock() {
   const clock = document.querySelector("[data-live-clock]");
   if (!clock) return;
   const tick = () => {
-    clock.textContent = formatDateTime(new Date());
+    clock.textContent = formatWithTimezone(new Date(), { timeStyle: "short" });
   };
   tick();
   setInterval(tick, 1000);
@@ -302,6 +323,7 @@ function initTimezoneControls() {
 function wireSessionButtons() {
   const actionButtons = document.querySelectorAll("[data-action]");
   if (!actionButtons.length) return;
+  controlStore.feedbackEl = document.querySelector("[data-control-feedback]");
   const routeMap = {
     "start-work": "start",
     "stop-work": "stop",
@@ -324,17 +346,33 @@ function wireSessionButtons() {
           headers: { "Content-Type": "application/json" },
           body: payload ? JSON.stringify(payload) : undefined,
         });
-        if (!res.ok) throw new Error("Action failed");
+        if (!res.ok) {
+          let message = "Unable to process action";
+          try {
+            const data = await res.json();
+            message = data?.detail || data?.error || message;
+          } catch (err) {
+            console.warn("Failed to parse error payload", err);
+          }
+          throw new Error(message);
+        }
         await dashboardRuntime.refresh();
+        showControlFeedback(actionSuccessMessages[action] || "Session updated", "success");
       } catch (err) {
         console.error(err);
-        alert("Unable to update session. Please try again.");
+        showControlFeedback(err.message || "Unable to update session", "error");
       } finally {
         btn.disabled = false;
         delete btn.dataset.loading;
+        updateControlStates(dashboardRuntime.getState());
       }
     });
+    const action = btn.getAttribute("data-action");
+    if (action) {
+      controlStore.buttons.set(action, btn);
+    }
   });
+  updateControlStates(dashboardRuntime.getState());
 }
 
 function hydrateDashboard() {
@@ -347,6 +385,7 @@ function hydrateDashboard() {
     renderRoster(state);
     renderRollCallHistory(state);
     renderTimezoneLabel();
+    updateControlStates(state);
   });
   wireSessionButtons();
   initTimezoneControls();
@@ -356,3 +395,92 @@ function hydrateDashboard() {
 document.addEventListener("DOMContentLoaded", () => {
   hydrateDashboard();
 });
+
+function startStatusTicker() {
+  if (!statusTicker.target || !statusTicker.startAt) {
+    stopStatusTicker();
+    return;
+  }
+  updateStatusDuration();
+  if (!statusTicker.handle) {
+    statusTicker.handle = setInterval(updateStatusDuration, 1000);
+  }
+}
+
+function stopStatusTicker() {
+  if (statusTicker.handle) {
+    clearInterval(statusTicker.handle);
+  }
+  statusTicker.handle = null;
+  statusTicker.startAt = null;
+  statusTicker.offsetMs = 0;
+  if (statusTicker.target) {
+    statusTicker.target.textContent = "";
+  }
+}
+
+function updateStatusDuration() {
+  if (!statusTicker.target || !statusTicker.startAt) return;
+  const now = new Date();
+  const diffMs = now - statusTicker.startAt;
+  const totalMs = diffMs + (statusTicker.offsetMs || 0);
+  if (totalMs < 0) {
+    statusTicker.target.textContent = "• 00:00:00";
+    return;
+  }
+  const totalSeconds = Math.floor(totalMs / 1000);
+  const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+  const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  statusTicker.target.textContent = `• ${hours}:${minutes}:${seconds}`;
+}
+
+function showControlFeedback(message, variant = "info") {
+  const el = controlStore.feedbackEl;
+  if (!el) return;
+  if (controlStore.timeout) {
+    clearTimeout(controlStore.timeout);
+    controlStore.timeout = null;
+  }
+  el.textContent = message || "";
+  if (message) {
+    el.dataset.variant = variant;
+    controlStore.timeout = setTimeout(() => {
+      el.textContent = "";
+      el.dataset.variant = "";
+    }, 5000);
+  } else {
+    el.dataset.variant = "";
+  }
+}
+
+function setButtonAvailability(action, enabled) {
+  const btn = controlStore.buttons.get(action);
+  if (!btn || btn.dataset.loading === "true") return;
+  btn.disabled = !enabled;
+}
+
+function updateControlStates(state) {
+  if (!state) return;
+  const openType = state?.open_session?.type || null;
+  const hasOpen = Boolean(openType);
+  setButtonAvailability("start-work", !hasOpen);
+  setButtonAvailability("stop-work", openType === "WORK");
+  setButtonAvailability("start-lunch", openType === "WORK");
+  setButtonAvailability("end-lunch", openType === "LUNCH");
+  setButtonAvailability("start-break", openType === "WORK");
+  setButtonAvailability("end-break", openType === "SHORT_BREAK");
+}
+
+function formatWithTimezone(date, baseOptions) {
+  const options = baseOptions || {};
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      ...options,
+      timeZone: dashboardRuntime.getDisplayTimezone(),
+    }).format(date);
+  } catch (err) {
+    console.error("format failed", err);
+    return date.toLocaleString();
+  }
+}

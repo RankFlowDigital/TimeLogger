@@ -1,4 +1,4 @@
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -25,6 +25,14 @@ def _render(request: Request, template_name: str, context: dict, status_code: in
 
     template = Jinja2Templates(directory=templates)
     return template.TemplateResponse(template_name, context, status_code=status_code)
+
+
+def _to_iso(value: datetime | None) -> str | None:
+    if not value:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _day_window(target: date | None = None) -> tuple[datetime, datetime]:
@@ -117,20 +125,24 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
 
     session_rows = []
     timeline_events = []
+    work_carry_seconds = 0
     for record in sessions:
-        duration_minutes = 0
+        duration_seconds = 0
         if record.ended_at:
-            duration_minutes = max(0, int((record.ended_at - record.started_at).total_seconds() // 60))
+            duration_seconds = max(0, int((record.ended_at - record.started_at).total_seconds()))
+        duration_minutes = duration_seconds // 60
         session_rows.append(
             {
                 "id": record.id,
                 "type": record.session_type,
-                "started_at": record.started_at.isoformat(),
-                "ended_at": record.ended_at.isoformat() if record.ended_at else None,
+                "started_at": _to_iso(record.started_at),
+                "ended_at": _to_iso(record.ended_at) if record.ended_at else None,
                 "duration_minutes": duration_minutes,
                 "source": record.source,
             }
         )
+        if record.session_type == "WORK" and record.ended_at:
+            work_carry_seconds += duration_seconds
         timeline_events.append(
             {
                 "id": f"{record.id}-start",
@@ -138,7 +150,7 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
                 "type": record.session_type,
                 "phase": "start",
                 "label": _event_label(record.session_type, "start"),
-                "timestamp": record.started_at.isoformat(),
+                "timestamp": _to_iso(record.started_at),
             }
         )
         if record.ended_at:
@@ -149,7 +161,7 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
                     "type": record.session_type,
                     "phase": "end",
                     "label": _event_label(record.session_type, "end"),
-                    "timestamp": record.ended_at.isoformat(),
+                    "timestamp": _to_iso(record.ended_at),
                 }
             )
 
@@ -158,9 +170,9 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
         roll_call_rows.append(
             {
                 "id": rc.id,
-                "triggered_at": rc.triggered_at.isoformat(),
-                "deadline_at": rc.deadline_at.isoformat(),
-                "responded_at": rc.responded_at.isoformat() if rc.responded_at else None,
+                "triggered_at": _to_iso(rc.triggered_at),
+                "deadline_at": _to_iso(rc.deadline_at),
+                "responded_at": _to_iso(rc.responded_at) if rc.responded_at else None,
                 "result": rc.result,
                 "delay_seconds": rc.response_delay_seconds,
             }
@@ -171,7 +183,7 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
                 "type": "ROLL_CALL",
                 "phase": rc.result,
                 "label": f"Roll-call {rc.result.title()}",
-                "timestamp": rc.triggered_at.isoformat(),
+                "timestamp": _to_iso(rc.triggered_at),
             }
         )
 
@@ -185,25 +197,26 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
             "timezone": user_record.timezone,
         },
         "summary": summary.dict(),
-        "server_time": datetime.utcnow().isoformat(),
+        "server_time": _to_iso(datetime.utcnow()),
         "open_session": None,
         "sessions": session_rows,
         "roll_calls": roll_call_rows,
         "timeline_events": timeline_events,
         "team_roster": team_roster,
         "pending_roll_call": None,
+        "work_carry_seconds": work_carry_seconds,
     }
     if open_session:
         payload["open_session"] = {
             "id": open_session.id,
             "type": open_session.session_type,
-            "started_at": open_session.started_at.isoformat(),
+            "started_at": _to_iso(open_session.started_at),
         }
     if pending_roll_call:
         payload["pending_roll_call"] = {
             "id": pending_roll_call.id,
-            "triggered_at": pending_roll_call.triggered_at.isoformat(),
-            "deadline_at": pending_roll_call.deadline_at.isoformat(),
+            "triggered_at": _to_iso(pending_roll_call.triggered_at),
+            "deadline_at": _to_iso(pending_roll_call.deadline_at),
         }
     return payload
 
