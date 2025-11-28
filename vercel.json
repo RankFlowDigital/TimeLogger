@@ -3,9 +3,8 @@
     "api/index.py": {
       "runtime": "python3.9"
     }
-
+  },
   "installCommand": "python -m pip install --upgrade pip && python -m pip install -r requirements.txt",
-  "installCommand": "chmod +x pip3.9 && cp pip3.9 /usr/local/bin/pip3.9 && python -m pip install --upgrade pip && python -m pip install -r requirements.txt",
   "crons": [
     {
       "path": "/api/internal/rollcall-tick",
