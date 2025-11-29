@@ -31,90 +31,28 @@
         {% block content %}{% endblock %}
     </main>
     {% if user %}
-    <aside class="chat-dock" id="chat-dock">
+    <aside class="chat-dock" id="chat-dock" data-user-role="{{ user.role }}">
         <div class="chat-dock-handle" data-chat-dock-resizer aria-hidden="true"></div>
         <div class="chat-shell" data-chat-shell>
-            <section class="chat-sidebar">
-                <div class="chat-tabs" role="tablist">
-                    <button class="chat-tab active" data-chat-tab="groups" type="button">Group chats</button>
-                    <button class="chat-tab" data-chat-tab="direct" type="button">Direct</button>
+            <section class="chat-sidebar" data-chat-sidebar>
+                <div class="chat-sidebar__header">
+                    <div>
+                        <p class="muted">Messaging</p>
+                        <strong>Rooms & Direct</strong>
+                    </div>
+                    {% if user.role in ["OWNER", "ADMIN"] %}
+                    <button type="button" class="chat-manage-button" data-chat-manage-trigger>Manage</button>
+                    {% endif %}
                 </div>
-                <div class="chat-panels chat-panels--lists">
-                    <section class="chat-panel active" data-chat-panel="groups" role="tabpanel">
-                        <ul class="chat-thread-list">
-                            <li class="chat-thread active">
-                                <button type="button" data-thread="team">
-                                    <div class="thread-avatar">TM</div>
-                                    <div class="thread-body">
-                                        <strong>Fundamental Ecom LLC</strong>
-                                        <span>All hands • active</span>
-                                    </div>
-                                    <div class="thread-meta">
-                                        <time data-thread-updated>now</time>
-                                    </div>
-                                </button>
-                            </li>
-                            <li class="chat-thread muted">
-                                <button type="button">
-                                    <div class="thread-avatar">RC</div>
-                                    <div class="thread-body">
-                                        <strong>Roll-call updates</strong>
-                                        <span>Automated reminders</span>
-                                    </div>
-                                    <div class="thread-meta">
-                                        <span class="badge">2</span>
-                                    </div>
-                                </button>
-                            </li>
-                        </ul>
-                    </section>
-                    <section class="chat-panel" data-chat-panel="direct" role="tabpanel" aria-hidden="true">
-                        <ul class="chat-thread-list">
-                            <li class="chat-thread">
-                                <button type="button">
-                                    <div class="thread-avatar">JD</div>
-                                    <div class="thread-body">
-                                        <strong>Juan Dela Cruz</strong>
-                                        <span>“On lunch, back 1pm.”</span>
-                                    </div>
-                                    <div class="thread-meta">
-                                        <time>11:45 AM</time>
-                                    </div>
-                                </button>
-                            </li>
-                            <li class="chat-thread">
-                                <button type="button">
-                                    <div class="thread-avatar">MS</div>
-                                    <div class="thread-body">
-                                        <strong>Mara Santos</strong>
-                                        <span>“Report submitted ✅”</span>
-                                    </div>
-                                    <div class="thread-meta">
-                                        <time>10:10 AM</time>
-                                    </div>
-                                </button>
-                            </li>
-                            <li class="chat-thread">
-                                <button type="button">
-                                    <div class="thread-avatar">AT</div>
-                                    <div class="thread-body">
-                                        <strong>Andre Torres</strong>
-                                        <span>“Need help on QC?”</span>
-                                    </div>
-                                    <div class="thread-meta">
-                                        <time>09:05 AM</time>
-                                    </div>
-                                </button>
-                            </li>
-                        </ul>
-                    </section>
-                </div>
+                <ul class="chat-thread-list" data-chat-thread-list>
+                    <li class="chat-panel-empty">Loading chats…</li>
+                </ul>
             </section>
             <section class="chat-conversation">
                 <header class="chat-conversation__header">
                     <div>
-                        <h3>Fundamental Ecom LLC</h3>
-                        <p>Active now • Broadcast to members</p>
+                        <h3 data-chat-room-name>Fundamental Ecom LLC</h3>
+                        <p data-chat-room-meta>Active now • Broadcast to members</p>
                     </div>
                     <div class="chat-conversation__actions">
                         <button type="button" aria-label="Start voice call">🔊</button>
@@ -134,9 +72,9 @@
                             <p class="muted" data-rollcall-note></p>
                         </div>
                     </div>
-                    <div class="chat-messages" data-chat-messages="team"></div>
+                    <div class="chat-messages" data-chat-messages="room"></div>
                 </div>
-                <form class="chat-composer" data-chat-form="team">
+                <form class="chat-composer" data-chat-form="room">
                     <label class="sr-only" for="dock-chat-input">Message</label>
                     <textarea id="dock-chat-input" name="content" rows="3" placeholder="Aa"></textarea>
                     <div class="chat-composer__actions">
@@ -148,6 +86,62 @@
             </section>
             <div class="chat-column-handle" data-chat-column-resizer aria-hidden="true"></div>
         </div>
+        {% if user.role in ["OWNER", "ADMIN"] %}
+        <section class="chat-manager" data-chat-manager hidden>
+            <div class="chat-manager__panel">
+                <div class="chat-manager__head">
+                    <div>
+                        <p class="muted">Control center</p>
+                        <strong>Group chat administration</strong>
+                    </div>
+                    <button type="button" class="chat-manager__close" data-chat-manage-close>&times;</button>
+                </div>
+                <section class="chat-manager__section">
+                    <h4>Create a new group</h4>
+                    <form data-chat-create-form class="chat-manager__form">
+                        <label>Group name
+                            <input type="text" name="name" required minlength="3" maxlength="120">
+                        </label>
+                        <label>Add members
+                            <select name="members" multiple data-chat-create-members></select>
+                        </label>
+                        <div class="chat-manager__settings">
+                            <label><input type="checkbox" name="allow_media" checked> Allow media uploads</label>
+                            <label><input type="checkbox" name="allow_mentions" checked> Allow @mentions</label>
+                            <label><input type="checkbox" name="allow_replies" checked> Allow threaded replies</label>
+                        </div>
+                        <button type="submit">Create group chat</button>
+                    </form>
+                    <p class="chat-manager__feedback" data-chat-create-feedback></p>
+                </section>
+                <section class="chat-manager__section" data-chat-room-admin hidden>
+                    <h4>Manage existing group</h4>
+                    <label>Select room
+                        <select data-chat-room-select></select>
+                    </label>
+                    <form data-chat-rename-form class="chat-manager__form" hidden>
+                        <label>Group name
+                            <input type="text" name="name" minlength="3" maxlength="120">
+                        </label>
+                        <div class="chat-manager__settings">
+                            <label><input type="checkbox" name="allow_media"> Allow media uploads</label>
+                            <label><input type="checkbox" name="allow_mentions"> Allow @mentions</label>
+                            <label><input type="checkbox" name="allow_replies"> Allow threaded replies</label>
+                        </div>
+                        <button type="submit">Save changes</button>
+                    </form>
+                    <div class="chat-member-list" data-chat-member-list></div>
+                    <form data-chat-add-member-form class="chat-manager__form" hidden>
+                        <label>Add member
+                            <select data-chat-add-member-options></select>
+                        </label>
+                        <button type="submit">Add to room</button>
+                    </form>
+                    <p class="chat-manager__feedback" data-chat-room-feedback></p>
+                </section>
+            </div>
+        </section>
+        {% endif %}
     </aside>
     {% endif %}
 </div>

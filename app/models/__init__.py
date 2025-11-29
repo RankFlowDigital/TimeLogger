@@ -2,6 +2,8 @@ from sqlalchemy.orm import declarative_base
 
 Base = declarative_base()
 
+from .chat_room import ChatRoom  # noqa: E402,F401
+from .chat_room_member import ChatRoomMember  # noqa: E402,F401
 from .deduction import Deduction  # noqa: E402,F401
 from .leave import Leave  # noqa: E402,F401
 from .message import Message  # noqa: E402,F401
