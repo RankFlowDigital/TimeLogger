@@ -178,7 +178,7 @@ def _serialize_message(message: Message, user_lookup: dict[int, User]) -> dict:
         "content": message.content,
         "created_at": message.created_at.isoformat(),
         "message_type": message.message_type,
-        "metadata": message.metadata or {},
+        "metadata": message.meta or {},
     }
 
 
@@ -713,7 +713,7 @@ async def post_message(
         room_id=room.id,
         user_id=user["id"],
         content=payload.content.strip(),
-        metadata=metadata or None,
+        meta=metadata or None,
     )
     db.add(message)
     db.flush()

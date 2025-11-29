@@ -13,5 +13,5 @@ class Message(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
     message_type = Column(message_type_enum, nullable=False, default="CHAT")
-    metadata = Column(JSON, nullable=True)
+    meta = Column("metadata", JSON, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
