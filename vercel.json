@@ -1,11 +1,6 @@
 {
   "version": 2,
   "installCommand": "python -m pip install --upgrade pip && python -m pip install -r requirements.txt",
-  "functions": {
-    "api/index.py": {
-      "runtime": "python3.11"
-    }
-  },
   "crons": [
     {
       "path": "/api/internal/rollcall-tick",
