@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import logging
 import secrets
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -12,7 +14,10 @@ from ..models import User
 from ..routers.auth import get_password_hash, verify_password
 from ..schemas.report import UserReportQuery
 from ..schemas.user import ChangePasswordRequest, InviteUserRequest, TimezonePreference
+from ..services.mailer import send_invitation_email
 from ..services.reporting import get_user_summary
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -82,9 +87,19 @@ async def invite_user(
         password_hash=get_password_hash(temp_password),
         role=role,
         timezone=timezone_value,
+        invited_at=datetime.utcnow(),
+        must_reset_password=True,
     )
     db.add(invited)
     db.commit()
+
+    login_url = str(request.url_for("login_form"))
+    email_sent = True
+    try:
+        send_invitation_email(invited.email, login_url, temp_password)
+    except Exception as exc:  # pragma: no cover - network failures logged for admins
+        logger.exception("Invite email failed for %s", invited.email)
+        email_sent = False
 
     return JSONResponse(
         {
@@ -97,6 +112,7 @@ async def invite_user(
                 "timezone": invited.timezone,
             },
             "temp_password": temp_password,
+            "email_sent": email_sent,
         },
         status_code=201,
     )

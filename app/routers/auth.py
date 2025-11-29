@@ -1,6 +1,8 @@
 from datetime import datetime
 from pathlib import Path
 
+import logging
+
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session
@@ -11,6 +13,7 @@ from ..models import Organization, User
 
 router = APIRouter(tags=["auth"])
 templates = Path(__file__).resolve().parents[1] / "templates"
+logger = logging.getLogger(__name__)
 
 
 def _render(request: Request, template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
@@ -94,44 +97,48 @@ async def login(
     password: str = Form(...),
     db: Session = Depends(get_db),
 ):
-    user = db.query(User).filter(User.email == email.lower()).one_or_none()
-    if not user or not verify_password(password, user.password_hash):
-        return _render(
-            request,
-            "auth/login.html",
-            {"request": request, "error": "Invalid credentials"},
-            status.HTTP_400_BAD_REQUEST,
-        )
+    try:
+        user = db.query(User).filter(User.email == email.lower()).one_or_none()
+        if not user or not verify_password(password, user.password_hash):
+            return _render(
+                request,
+                "auth/login.html",
+                {"request": request, "error": "Invalid credentials"},
+                status.HTTP_400_BAD_REQUEST,
+            )
 
-    if not user.is_active:
-        return _render(
-            request,
-            "auth/login.html",
-            {"request": request, "error": "Account is restricted. Contact an administrator."},
-            status.HTTP_403_FORBIDDEN,
-        )
+        if not user.is_active:
+            return _render(
+                request,
+                "auth/login.html",
+                {"request": request, "error": "Account is restricted. Contact an administrator."},
+                status.HTTP_403_FORBIDDEN,
+            )
 
-    if user.must_reset_password:
-        request.session.clear()
-        request.session["pending_password_reset"] = user.id
-        return _render(
-            request,
-            "auth/first_login.html",
-            {"request": request, "email": user.email},
-        )
+        if user.must_reset_password:
+            request.session.clear()
+            request.session["pending_password_reset"] = user.id
+            return _render(
+                request,
+                "auth/first_login.html",
+                {"request": request, "email": user.email},
+            )
 
-    if not user.joined_at:
-        user.joined_at = datetime.utcnow()
-        db.commit()
+        if not user.joined_at:
+            user.joined_at = datetime.utcnow()
+            db.commit()
 
-    request.session["user"] = {
-        "id": user.id,
-        "org_id": user.org_id,
-        "role": user.role,
-        "full_name": user.full_name,
-        "timezone": user.timezone,
-    }
-    return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+        request.session["user"] = {
+            "id": user.id,
+            "org_id": user.org_id,
+            "role": user.role,
+            "full_name": user.full_name,
+            "timezone": user.timezone,
+        }
+        return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+    except Exception:
+        logger.exception("Login failed")
+        raise
 
 
 @router.post("/logout")
