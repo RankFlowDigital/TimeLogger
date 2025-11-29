@@ -118,20 +118,6 @@ async def start_lunch(request: Request, db: Session = Depends(get_db)):
     if not open_work:
         raise HTTPException(status_code=400, detail="Start a work session before lunch")
 
-    start, end = _today_window()
-    existing_lunch = (
-        db.query(WorkSession)
-        .filter(
-            WorkSession.user_id == user["id"],
-            WorkSession.session_type == "LUNCH",
-            WorkSession.started_at >= start,
-            WorkSession.started_at < end,
-        )
-        .count()
-    )
-    if existing_lunch:
-        raise HTTPException(status_code=400, detail="Daily lunch already taken")
-
     _close_open_session(db, user["id"], "WORK")
     session = _start_session(db, user, "LUNCH")
     return JSONResponse({"status": "lunch_started", "session_id": session.id})
@@ -153,8 +139,7 @@ async def end_lunch(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="No lunch in progress")
     open_lunch.ended_at = datetime.utcnow()
     db.commit()
-    new_work = _start_session(db, user, "WORK")
-    return JSONResponse({"status": "lunch_ended", "resumed_session": new_work.id})
+    return JSONResponse({"status": "lunch_ended"})
 
 
 @router.post("/start-break")
@@ -171,10 +156,6 @@ async def start_break(request: Request, db: Session = Depends(get_db)):
     )
     if not open_work:
         raise HTTPException(status_code=400, detail="Start a work session before taking a break")
-
-    total_break_minutes = _total_break_minutes(db, user["id"])
-    if total_break_minutes >= 30:
-        raise HTTPException(status_code=400, detail="Short break allowance reached for today")
 
     _close_open_session(db, user["id"], "WORK")
     session = _start_session(db, user, "SHORT_BREAK")
@@ -197,5 +178,4 @@ async def end_break(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="No break in progress")
     open_break.ended_at = datetime.utcnow()
     db.commit()
-    new_work = _start_session(db, user, "WORK")
-    return JSONResponse({"status": "break_ended", "resumed_session": new_work.id})
+    return JSONResponse({"status": "break_ended"})

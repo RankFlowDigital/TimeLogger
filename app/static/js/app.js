@@ -186,6 +186,15 @@ function renderSummary(state) {
       node.textContent = value.toLocaleString();
     }
   });
+  const netDisplay = document.querySelector("[data-summary-net-hours-display]");
+  if (netDisplay) {
+    const workMinutes = Number(metrics.work_minutes) || 0;
+    const overbreak = Number(metrics.overbreak_minutes) || 0;
+    const rollcall = Number(metrics.rollcall_deduction_minutes) || 0;
+    const cappedWork = Math.min(480, Math.max(0, workMinutes));
+    const netMinutes = Math.max(0, cappedWork - overbreak - rollcall);
+    netDisplay.textContent = formatHoursMinutes(netMinutes);
+  }
 }
 
 function renderTimeline(state) {
@@ -485,7 +494,6 @@ function hydrateDashboard() {
     updateControlStates(state);
   });
   wireSessionButtons();
-  initTimezoneControls();
   startClock();
 }
 
@@ -499,6 +507,8 @@ function startDashboardAutoRefresh() {
 document.addEventListener("DOMContentLoaded", () => {
   hydrateDashboard();
   startDashboardAutoRefresh();
+  initProfilePage();
+  initTimezoneControls();
 });
 
 function startStatusTicker() {
@@ -587,5 +597,144 @@ function formatWithTimezone(date, baseOptions) {
   } catch (err) {
     console.error("format failed", err);
     return date.toLocaleString();
+  }
+}
+
+function formatHoursMinutes(totalMinutes) {
+  const safeMinutes = Math.max(0, Math.round(totalMinutes));
+  const hours = Math.floor(safeMinutes / 60);
+  const minutes = String(safeMinutes % 60).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function initProfilePage() {
+  const root = document.querySelector("[data-profile-page]");
+  if (!root) return;
+  const preferredTimezone = root.getAttribute("data-user-timezone");
+  dashboardRuntime.setDisplayTimezone(preferredTimezone || null);
+  wirePasswordForm(root);
+  wireReportForm(root);
+}
+
+function wirePasswordForm(root) {
+  const form = root.querySelector("[data-password-form]");
+  if (!form) return;
+  const feedback = root.querySelector("[data-password-feedback]");
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    setFormFeedback(feedback, "");
+    const formData = new FormData(form);
+    const currentPassword = (formData.get("current_password") || "").trim();
+    const newPassword = (formData.get("new_password") || "").trim();
+    const confirmPassword = (formData.get("confirm_password") || "").trim();
+    if (!currentPassword || !newPassword) {
+      setFormFeedback(feedback, "Please provide both current and new passwords.", "error");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setFormFeedback(feedback, "New passwords do not match.", "error");
+      return;
+    }
+    const submitBtn = form.querySelector("button[type='submit']");
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const res = await fetch("/api/users/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+      });
+      if (!res.ok) {
+        const message = await extractErrorMessage(res, "Unable to update password");
+        throw new Error(message);
+      }
+      setFormFeedback(feedback, "Password updated successfully.", "success");
+      form.reset();
+    } catch (err) {
+      console.error(err);
+      setFormFeedback(feedback, err.message || "Unable to update password.", "error");
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+}
+
+function wireReportForm(root) {
+  const form = root.querySelector("[data-report-form]");
+  if (!form) return;
+  const feedback = root.querySelector("[data-report-feedback]");
+  const rangeLabel = root.querySelector("[data-report-range]");
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    setFormFeedback(feedback, "");
+    const formData = new FormData(form);
+    const startDate = formData.get("start_date");
+    const endDate = formData.get("end_date");
+    if (!startDate || !endDate) {
+      setFormFeedback(feedback, "Select both start and end dates.", "error");
+      return;
+    }
+    const submitBtn = form.querySelector("button[type='submit']");
+    if (submitBtn) submitBtn.disabled = true;
+    try {
+      const res = await fetch("/api/users/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ start_date: startDate, end_date: endDate }),
+      });
+      if (!res.ok) {
+        const message = await extractErrorMessage(res, "Unable to generate report");
+        throw new Error(message);
+      }
+      const data = await res.json();
+      updateReportMetrics(root, data);
+      if (rangeLabel) {
+        rangeLabel.textContent = `${startDate} – ${endDate}`;
+      }
+      setFormFeedback(feedback, "Report updated.", "success");
+    } catch (err) {
+      console.error(err);
+      setFormFeedback(feedback, err.message || "Unable to generate report.", "error");
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+}
+
+function updateReportMetrics(root, report) {
+  if (!report || !root) return;
+  const numericTwoDecimal = new Set(["total_hours", "net_hours"]);
+  root.querySelectorAll("[data-report-metric]").forEach((node) => {
+    const key = node.getAttribute("data-report-metric");
+    if (!key || !(key in report)) return;
+    let value = report[key];
+    if (numericTwoDecimal.has(key)) {
+      value = Number(value || 0).toFixed(2);
+    } else if (typeof value === "number") {
+      value = value.toLocaleString();
+    } else {
+      value = value || 0;
+    }
+    node.textContent = value;
+  });
+}
+
+async function extractErrorMessage(response, fallback) {
+  let message = fallback;
+  try {
+    const data = await response.json();
+    message = data?.detail || data?.error || message;
+  } catch (err) {
+    console.warn("Failed to parse error payload", err);
+  }
+  return message;
+}
+
+function setFormFeedback(target, message, variant = "success") {
+  if (!target) return;
+  target.textContent = message || "";
+  if (message) {
+    target.dataset.variant = variant;
+  } else {
+    delete target.dataset.variant;
   }
 }

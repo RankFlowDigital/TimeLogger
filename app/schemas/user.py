@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, constr
 
 
 class UserBase(BaseModel):
@@ -27,3 +27,8 @@ class InviteUserRequest(BaseModel):
     full_name: str
     role: str | None = "MEMBER"
     timezone: str | None = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: constr(min_length=1)
+    new_password: constr(min_length=8)

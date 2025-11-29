@@ -16,9 +16,9 @@
         <a href="/dashboard">Dashboard</a>
         <a href="/dashboard/profile">Profile</a>
         <a href="/dashboard/history">History</a>
+        <a href="/reports">Reports</a>
         {% if user.role in ["OWNER", "ADMIN"] %}
         <a href="/admin">Admin</a>
-        <a href="/admin/reports">Reports</a>
         {% endif %}
         <form action="/logout" method="post" style="display:inline">
             <button type="submit">Logout</button>
@@ -35,20 +35,6 @@
         <div class="chat-dock-handle" data-chat-dock-resizer aria-hidden="true"></div>
         <div class="chat-shell" data-chat-shell>
             <section class="chat-sidebar">
-                <header class="chat-sidebar__header">
-                    <div>
-                        <p class="muted">Chats</p>
-                        <h2>Messenger</h2>
-                    </div>
-                    <div class="chat-sidebar__actions">
-                        <button type="button" aria-label="New chat">+</button>
-                        <button type="button" aria-label="Chat options">⋯</button>
-                    </div>
-                </header>
-                <label class="chat-sidebar__search">
-                    <span class="sr-only">Search chats</span>
-                    <input type="search" placeholder="Search messenger" />
-                </label>
                 <div class="chat-tabs" role="tablist">
                     <button class="chat-tab active" data-chat-tab="groups" type="button">Group chats</button>
                     <button class="chat-tab" data-chat-tab="direct" type="button">Direct</button>

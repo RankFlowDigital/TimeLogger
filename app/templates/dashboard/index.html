@@ -70,24 +70,30 @@
             <h2>Operational summary</h2>
             <p class="muted">Lunch, break, and roll-call insights.</p>
         </header>
-        <dl class="insights-list">
-            <div>
-                <dt>Lunch minutes</dt>
-                <dd data-summary-metric="lunch_minutes">0</dd>
-            </div>
-            <div>
-                <dt>Break minutes</dt>
-                <dd data-summary-metric="short_break_minutes">0</dd>
-            </div>
-            <div>
-                <dt>Overbreak</dt>
-                <dd data-summary-metric="overbreak_minutes">0</dd>
-            </div>
-            <div>
-                <dt>Roll-call deductions</dt>
-                <dd data-summary-metric="rollcall_deduction_minutes">0</dd>
-            </div>
-        </dl>
+        <table class="insights-table">
+            <tbody>
+            <tr>
+                <th>Lunch minutes</th>
+                <td data-summary-metric="lunch_minutes">0</td>
+            </tr>
+            <tr>
+                <th>Break minutes</th>
+                <td data-summary-metric="short_break_minutes">0</td>
+            </tr>
+            <tr>
+                <th>Overbreak</th>
+                <td data-summary-metric="overbreak_minutes">0</td>
+            </tr>
+            <tr>
+                <th>Roll-call deductions</th>
+                <td data-summary-metric="rollcall_deduction_minutes">0</td>
+            </tr>
+            <tr>
+                <th>Net work hours</th>
+                <td data-summary-net-hours-display>0:00</td>
+            </tr>
+            </tbody>
+        </table>
         <section class="activity-log">
             <h3>Activity log</h3>
             <ul data-activity-log></ul>

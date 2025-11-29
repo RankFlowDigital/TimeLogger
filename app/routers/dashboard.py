@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import RollCall, User, WorkSession
 from ..services.attendance import build_summary_for_day
+from ..services.reporting import get_user_summary
 
 router = APIRouter(tags=["dashboard"])
 templates = Path(__file__).resolve().parents[1] / "templates"
@@ -359,6 +360,10 @@ async def dashboard_profile(request: Request, target_date: str | None = None, db
     if not user_session:
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
+    user_record = db.query(User).filter(User.id == user_session["id"]).one_or_none()
+    if not user_record:
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+
     day = date.fromisoformat(target_date) if target_date else date.today()
     summary = build_summary_for_day(db, user_session["id"], day)
     sessions = (
@@ -382,15 +387,23 @@ async def dashboard_profile(request: Request, target_date: str | None = None, db
         .all()
     )
 
+    range_start = day - timedelta(days=6)
+    range_end = day
+    user_report = get_user_summary(db, user_session["id"], range_start, range_end)
+
     return _render(
         request,
         "dashboard/profile.html",
         {
             "request": request,
             "user": user_session,
+            "profile_user": user_record,
             "target_date": day.isoformat(),
             "summary": summary,
             "sessions": sessions,
             "roll_calls": roll_calls,
+            "report": user_report,
+            "report_start": range_start.isoformat(),
+            "report_end": range_end.isoformat(),
         },
     )

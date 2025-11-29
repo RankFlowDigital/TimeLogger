@@ -9,8 +9,10 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import User
-from ..routers.auth import get_password_hash
-from ..schemas.user import InviteUserRequest, TimezonePreference
+from ..routers.auth import get_password_hash, verify_password
+from ..schemas.report import UserReportQuery
+from ..schemas.user import ChangePasswordRequest, InviteUserRequest, TimezonePreference
+from ..services.reporting import get_user_summary
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -98,3 +100,37 @@ async def invite_user(
         },
         status_code=201,
     )
+
+
+@router.post("/change-password")
+async def change_password(
+    request: Request,
+    payload: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+):
+    user_session = _require_user(request)
+    user = db.query(User).filter(User.id == user_session["id"]).one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not verify_password(payload.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect")
+    if payload.current_password == payload.new_password:
+        raise HTTPException(status_code=400, detail="New password must be different")
+
+    user.password_hash = get_password_hash(payload.new_password)
+    db.commit()
+    return JSONResponse({"status": "updated"})
+
+
+@router.post("/report")
+async def user_report(
+    request: Request,
+    payload: UserReportQuery,
+    db: Session = Depends(get_db),
+):
+    user_session = _require_user(request)
+    try:
+        report = get_user_summary(db, user_session["id"], payload.start_date, payload.end_date)
+    except ValueError as exc:  # pragma: no cover - defensive guard
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return JSONResponse(report.dict())

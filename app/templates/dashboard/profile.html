@@ -1,64 +1,200 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="panel">
-    <h2>Daily Snapshot</h2>
-    <form method="get" class="form-grid">
-        <label>Date<input type="date" name="target_date" value="{{ target_date }}"></label>
-        <button type="submit">Load</button>
-    </form>
-    <ul>
-        <li>Work minutes: {{ summary.work_minutes }}</li>
-        <li>Lunch minutes: {{ summary.lunch_minutes }}</li>
-        <li>Short breaks: {{ summary.short_break_minutes }}</li>
-        <li>Overbreak: {{ summary.overbreak_minutes }}</li>
-        <li>Roll-call deductions: {{ summary.rollcall_deduction_minutes }}</li>
-        <li>Net hours: {{ '%.2f'|format(summary.net_hours) }}</li>
-    </ul>
-</section>
+{% set name_parts = profile_user.full_name.split() if profile_user.full_name else [] %}
+{% set initials_seed = (name_parts[0][:1] if name_parts|length > 0 else (profile_user.full_name[:1] if profile_user.full_name else '')) + (name_parts[1][:1] if name_parts|length > 1 else '') %}
+{% set initials = initials_seed|upper if initials_seed else 'TM' %}
+<div class="profile-page" data-profile-page data-user-timezone="{{ profile_user.timezone or '' }}">
+    <div class="profile-columns">
+        <section class="card profile-card">
+            <header class="profile-identity">
+                <div class="profile-avatar">{{ initials }}</div>
+                <div>
+                    <p class="eyebrow">Account</p>
+                    <h1>{{ profile_user.full_name }}</h1>
+                    <p class="profile-email">{{ profile_user.email }}</p>
+                    <span class="badge">{{ profile_user.role.title() }}</span>
+                </div>
+            </header>
+            <div class="profile-meta">
+                <div>
+                    <label for="profile-timezone">Preferred timezone</label>
+                    <select id="profile-timezone" data-timezone-select></select>
+                </div>
+                <div class="timezone-actions">
+                    <button type="button" class="secondary" data-timezone-reset>Use device</button>
+                    <button type="button" data-timezone-save>Save</button>
+                </div>
+            </div>
+            <p class="timezone-feedback" data-timezone-feedback></p>
+        </section>
 
-<section class="panel">
-    <h3>Sessions</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Type</th>
-                <th>Start</th>
-                <th>End</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for session in sessions %}
-            <tr>
-                <td>{{ session.session_type }}</td>
-                <td>{{ session.started_at }}</td>
-                <td>{{ session.ended_at or 'Open' }}</td>
-            </tr>
-            {% endfor %}
-            {% if sessions|length == 0 %}
-            <tr><td colspan="3">No sessions logged.</td></tr>
-            {% endif %}
-        </tbody>
-    </table>
-</section>
+        <section class="card password-card">
+            <header>
+                <h2>Change password</h2>
+                <p class="muted">Passwords must be at least 8 characters.</p>
+            </header>
+            <form class="profile-form" data-password-form>
+                <label>Current password
+                    <input type="password" name="current_password" required autocomplete="current-password">
+                </label>
+                <label>New password
+                    <input type="password" name="new_password" minlength="8" required autocomplete="new-password">
+                </label>
+                <label>Confirm new password
+                    <input type="password" name="confirm_password" minlength="8" required autocomplete="new-password">
+                </label>
+                <button type="submit">Update password</button>
+                <p class="form-feedback" data-password-feedback></p>
+            </form>
+        </section>
+    </div>
 
-<section class="panel">
-    <h3>Roll Calls</h3>
-    <table>
-        <thead>
-            <tr><th>Triggered</th><th>Deadline</th><th>Status</th></tr>
-        </thead>
-        <tbody>
-            {% for rc in roll_calls %}
-            <tr>
-                <td>{{ rc.triggered_at }}</td>
-                <td>{{ rc.deadline_at }}</td>
-                <td>{{ rc.result }}</td>
-            </tr>
-            {% endfor %}
-            {% if roll_calls|length == 0 %}
-            <tr><td colspan="3">No roll calls for this day.</td></tr>
-            {% endif %}
-        </tbody>
-    </table>
-</section>
+    <section class="card snapshot-card">
+        <header class="snapshot-header">
+            <div>
+                <h2>Daily snapshot</h2>
+                <p class="muted">Overview for {{ target_date }}</p>
+            </div>
+            <form method="get" class="snapshot-form">
+                <label>Date
+                    <input type="date" name="target_date" value="{{ target_date }}">
+                </label>
+                <button type="submit">Load</button>
+            </form>
+        </header>
+        <div class="snapshot-grid">
+            <article>
+                <p>Work minutes</p>
+                <strong>{{ summary.work_minutes }}</strong>
+            </article>
+            <article>
+                <p>Lunch minutes</p>
+                <strong>{{ summary.lunch_minutes }}</strong>
+            </article>
+            <article>
+                <p>Break minutes</p>
+                <strong>{{ summary.short_break_minutes }}</strong>
+            </article>
+            <article>
+                <p>Overbreak</p>
+                <strong>{{ summary.overbreak_minutes }}</strong>
+            </article>
+            <article>
+                <p>Roll-call deductions</p>
+                <strong>{{ summary.rollcall_deduction_minutes }}</strong>
+            </article>
+            <article>
+                <p>Net hours</p>
+                <strong>{{ '%.2f'|format(summary.net_hours) }}</strong>
+            </article>
+        </div>
+    </section>
+
+    <div class="profile-columns">
+        <section class="card activity-card">
+            <header>
+                <h3>Sessions</h3>
+                <p class="muted">Entries for {{ target_date }}</p>
+            </header>
+            <table>
+                <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Start</th>
+                    <th>End</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for session in sessions %}
+                <tr>
+                    <td>{{ session.session_type.replace('_', ' ') }}</td>
+                    <td>{{ session.started_at }}</td>
+                    <td>{{ session.ended_at or 'Open' }}</td>
+                </tr>
+                {% endfor %}
+                {% if sessions|length == 0 %}
+                <tr><td colspan="3">No sessions logged.</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </section>
+        <section class="card activity-card">
+            <header>
+                <h3>Roll calls</h3>
+                <p class="muted">Responses for {{ target_date }}</p>
+            </header>
+            <table>
+                <thead>
+                <tr>
+                    <th>Triggered</th>
+                    <th>Deadline</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for rc in roll_calls %}
+                <tr>
+                    <td>{{ rc.triggered_at }}</td>
+                    <td>{{ rc.deadline_at }}</td>
+                    <td>{{ rc.result }}</td>
+                </tr>
+                {% endfor %}
+                {% if roll_calls|length == 0 %}
+                <tr><td colspan="3">No roll calls for this day.</td></tr>
+                {% endif %}
+                </tbody>
+            </table>
+        </section>
+    </div>
+
+    <section class="card report-card">
+        <header>
+            <div>
+                <h2>Generate activity report</h2>
+                <p class="muted">Download-ready summary of work hours, breaks, roll calls, and deductions.</p>
+            </div>
+            <form class="profile-form report-form" data-report-form>
+                <label>Start date
+                    <input type="date" name="start_date" value="{{ report_start }}" required>
+                </label>
+                <label>End date
+                    <input type="date" name="end_date" value="{{ report_end }}" required>
+                </label>
+                <button type="submit">Generate</button>
+                <p class="form-feedback" data-report-feedback></p>
+            </form>
+        </header>
+        <p class="muted">Showing <span data-report-range>{{ report_start }} – {{ report_end }}</span></p>
+        <div class="report-metrics">
+            <article>
+                <p>Total hours</p>
+                <strong data-report-metric="total_hours">{{ '%.2f'|format(report.total_hours) }}</strong>
+            </article>
+            <article>
+                <p>Net hours</p>
+                <strong data-report-metric="net_hours">{{ '%.2f'|format(report.net_hours) }}</strong>
+            </article>
+            <article>
+                <p>Sessions logged</p>
+                <strong data-report-metric="sessions_count">{{ report.sessions_count }}</strong>
+            </article>
+            <article>
+                <p>Overbreak minutes</p>
+                <strong data-report-metric="overbreak_minutes">{{ report.overbreak_minutes }}</strong>
+            </article>
+            <article>
+                <p>Roll-call deductions</p>
+                <strong data-report-metric="rollcall_minutes">{{ report.rollcall_minutes }}</strong>
+            </article>
+            <article>
+                <p>Roll calls (P/L/M)</p>
+                <strong>
+                    <span data-report-metric="rollcall_passed">{{ report.rollcall_passed }}</span>/
+                    <span data-report-metric="rollcall_late">{{ report.rollcall_late }}</span>/
+                    <span data-report-metric="rollcall_missed">{{ report.rollcall_missed }}</span>
+                </strong>
+            </article>
+        </div>
+    </section>
+</div>
 {% endblock %}

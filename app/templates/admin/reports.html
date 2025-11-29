@@ -1,37 +1,110 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="panel">
-    <h2>Reports</h2>
-    <form method="get" class="filters">
-        <label>Start<input type="date" name="start_date" value="{{ start_date }}"></label>
-        <label>End<input type="date" name="end_date" value="{{ end_date }}"></label>
-        <button type="submit">Apply</button>
-    </form>
-    <table>
-        <thead>
-            <tr>
-                <th>User</th>
-                <th>Total Hours</th>
-                <th>Overbreak</th>
-                <th>Roll-call Deduction</th>
-                <th>Net Hours</th>
-                <th>Sessions</th>
-                <th>Roll Calls</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for report in reports %}
-            <tr>
-                <td>{{ report.full_name }}</td>
-                <td>{{ '%.2f'|format(report.total_hours) }}</td>
-                <td>{{ report.overbreak_minutes }}</td>
-                <td>{{ report.rollcall_minutes }}</td>
-                <td>{{ '%.2f'|format(report.net_hours) }}</td>
-                <td>{{ report.sessions_count }}</td>
-                <td>P: {{ report.rollcall_passed }} / L: {{ report.rollcall_late }} / M: {{ report.rollcall_missed }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</section>
+<div class="report-page" data-report-page>
+    <section class="card report-summary-card">
+        <div>
+            <p class="eyebrow">Operational intelligence</p>
+            <h1>Reports</h1>
+            <p class="muted">{{ filters.start }} – {{ filters.end }}</p>
+        </div>
+        <div class="summary-grid">
+            <article>
+                <p>Total users</p>
+                <strong data-summary-users>{{ summary.total_users }}</strong>
+            </article>
+            <article>
+                <p>Average net hours</p>
+                <strong data-summary-avg>{{ '%.2f'|format(summary.avg_net_hours) }}</strong>
+            </article>
+            <article>
+                <p>Total deductions (minutes)</p>
+                <strong data-summary-deductions>{{ summary.total_deductions }}</strong>
+            </article>
+        </div>
+    </section>
+
+    <section class="card report-filters">
+        <form method="get" class="report-filter-form" id="report-filter-form">
+            <input type="hidden" name="preset" id="report-preset" value="{{ filters.preset }}">
+            <div class="filter-group">
+                <label for="report-start">Start date</label>
+                <input type="date" id="report-start" name="start_date" value="{{ filters.start }}" required>
+            </div>
+            <div class="filter-group">
+                <label for="report-end">End date</label>
+                <input type="date" id="report-end" name="end_date" value="{{ filters.end }}" required>
+            </div>
+            {% if is_admin %}
+            <div class="filter-group">
+                <label for="report-user">User</label>
+                <select id="report-user" name="user_id">
+                    <option value="all" {% if filters.user_id == 'all' %}selected{% endif %}>All users</option>
+                    {% for option in user_options %}
+                    <option value="{{ option.id }}" {% if option.id|string == filters.user_id %}selected{% endif %}>{{ option.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="filter-quick">
+                <p>Quick ranges</p>
+                <div class="quick-buttons">
+                    <button type="button" data-range-shortcut="day" {% if filters.preset == 'day' %}class="active"{% endif %}>Daily</button>
+                    <button type="button" data-range-shortcut="week" {% if filters.preset == 'week' %}class="active"{% endif %}>Weekly</button>
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button type="submit">Apply</button>
+                <button type="button" class="secondary" data-report-export>Export CSV</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="card report-table-card">
+        <header class="table-header">
+            <div>
+                <h2>Performance details</h2>
+                <p class="muted">Sortable, paginated log with roll-call outcomes.</p>
+            </div>
+            <div class="table-pagination" data-report-pagination></div>
+        </header>
+        <div class="table-wrapper">
+            <table class="report-table">
+                <thead>
+                    <tr>
+                        <th data-sort="user">User</th>
+                        <th data-sort="total_hours">Total Hours</th>
+                        <th data-sort="lunch_minutes">Lunch</th>
+                        <th data-sort="break_minutes">Break</th>
+                        <th data-sort="overbreak_minutes">Overbreak</th>
+                        <th data-sort="rollcall_minutes">Roll-call Deduction</th>
+                        <th data-sort="net_minutes">Net Work Hours</th>
+                        <th data-sort="sessions">Sessions</th>
+                        <th data-sort="rollcall_total">Roll Calls</th>
+                    </tr>
+                </thead>
+                <tbody data-report-table>
+                    {% for row in reports %}
+                    <tr>
+                        <td>{{ row.user }}</td>
+                        <td>{{ '%.2f'|format(row.total_hours) }}</td>
+                        <td>{{ row.lunch_minutes }}</td>
+                        <td>{{ row.break_minutes }}</td>
+                        <td>{{ row.overbreak_minutes }}</td>
+                        <td>{{ row.rollcall_minutes }}</td>
+                        <td>{{ '%d:%02d' % (row.net_minutes // 60, row.net_minutes % 60) }}</td>
+                        <td>{{ row.sessions }}</td>
+                        <td>P: {{ row.rollcall_passed }} / L: {{ row.rollcall_late }} / M: {{ row.rollcall_missed }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if reports|length == 0 %}
+            <p class="empty-state">No report data for the selected range.</p>
+            {% endif %}
+        </div>
+    </section>
+</div>
+<script id="report-data" type="application/json">{{ reports | tojson | safe }}</script>
+<script id="report-summary" type="application/json">{{ summary | tojson | safe }}</script>
+<script defer src="/static/js/reports.js"></script>
 {% endblock %}
