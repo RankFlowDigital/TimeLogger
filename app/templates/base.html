@@ -33,6 +33,7 @@
     </main>
     {% if user %}
     <aside class="chat-dock" id="chat-dock">
+        <div class="chat-dock-handle" data-chat-dock-resizer aria-hidden="true"></div>
         <div class="chat-shell" data-chat-shell>
             <section class="chat-sidebar">
                 <header class="chat-sidebar__header">
@@ -184,7 +185,6 @@
             </section>
             <div class="chat-column-handle" data-chat-column-resizer aria-hidden="true"></div>
         </div>
-        <div class="chat-dock-handle" data-chat-dock-resizer aria-hidden="true"></div>
     </aside>
     {% endif %}
 </div>

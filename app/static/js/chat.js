@@ -208,10 +208,9 @@ function initInviteForm() {
 
 function initChatWidthControl() {
   const root = document.documentElement;
-  const shell = document.querySelector("[data-chat-shell]");
   const dockHandle = document.querySelector("[data-chat-dock-resizer]");
   const columnHandle = document.querySelector("[data-chat-column-resizer]");
-  if (!shell) return;
+  if (!dockHandle && !columnHandle) return;
 
   const dockRange = { min: 460, max: 1100 };
   const sidebarRange = { min: 260, max: 420 };
@@ -234,16 +233,18 @@ function initChatWidthControl() {
   applySidebarWidth(sidebarValue);
 
   dockHandle?.addEventListener("pointerdown", (event) => {
+    const initialDock = dockValue;
     startDrag(event, (delta) => {
-      const next = clampValue(dockValue + delta, dockRange.min, dockRange.max);
+      const next = clampValue(initialDock - delta, dockRange.min, dockRange.max);
       applyDockWidth(next);
     });
   });
 
   columnHandle?.addEventListener("pointerdown", (event) => {
+    const initialSidebar = sidebarValue;
     startDrag(event, (delta) => {
       const maxSidebar = Math.min(sidebarRange.max, dockValue - conversationMin);
-      const next = clampValue(sidebarValue + delta, sidebarRange.min, Math.max(sidebarRange.min, maxSidebar));
+      const next = clampValue(initialSidebar + delta, sidebarRange.min, Math.max(sidebarRange.min, maxSidebar));
       applySidebarWidth(next);
     });
   });
