@@ -11,6 +11,5 @@ if str(ROOT_DIR) not in sys.path:
 
 from app.main import app as fastapi_app
 
-# expose both names for compatibility with Vercel runtimes
+# expose ASGI app for Vercel Python runtime
 app = fastapi_app
-handler = fastapi_app
