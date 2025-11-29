@@ -33,6 +33,16 @@
     </main>
     {% if user %}
     <aside class="chat-dock" id="chat-dock">
+        <section class="chat-width-control">
+            <div>
+                <p class="muted">Adjust columns</p>
+                <strong data-chat-width-display>Threads 33% · Messages 67%</strong>
+            </div>
+            <label class="chat-width-control__slider">
+                <span class="sr-only">Sidebar width</span>
+                <input type="range" min="260" max="420" value="320" step="5" data-chat-width-slider>
+            </label>
+        </section>
         <div class="chat-shell">
             <section class="chat-sidebar">
                 <header class="chat-sidebar__header">

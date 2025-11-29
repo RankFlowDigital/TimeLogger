@@ -154,6 +154,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initLegacyInterfaces();
   setupChatTabs();
   initInviteForm();
+  initChatWidthControl();
   if (chatState.interfaces.some((iface) => iface.channel === "team")) {
     startChatPolling();
   }
@@ -203,4 +204,33 @@ function initInviteForm() {
       }
     }, 6000);
   });
+}
+
+function initChatWidthControl() {
+  const slider = document.querySelector("[data-chat-width-slider]");
+  if (!slider) return;
+  const display = document.querySelector("[data-chat-width-display]");
+  const root = document.documentElement;
+  const shell = document.querySelector(".chat-shell");
+  const min = Number(slider.min) || 260;
+  const max = Number(slider.max) || 420;
+  const defaultValue = Number(slider.value) || 320;
+  const stored = parseInt(localStorage.getItem("chatSidebarWidth"), 10);
+  const initial = Number.isFinite(stored) ? stored : defaultValue;
+  applyWidth(initial);
+  slider.value = initial;
+  slider.addEventListener("input", () => applyWidth(Number(slider.value)));
+
+  function applyWidth(raw) {
+    const value = Number.isFinite(raw) ? raw : defaultValue;
+    const clamped = Math.max(min, Math.min(max, value));
+    root.style.setProperty("--chat-sidebar-width", `${clamped}px`);
+    localStorage.setItem("chatSidebarWidth", clamped);
+    if (display) {
+      const containerWidth = shell?.clientWidth || clamped + 640;
+      const sidebarPercent = Math.min(99, Math.max(1, Math.round((clamped / containerWidth) * 100)));
+      const messagePercent = Math.max(1, 100 - sidebarPercent);
+      display.textContent = `Threads ${sidebarPercent}% · Messages ${messagePercent}%`;
+    }
+  }
 }
