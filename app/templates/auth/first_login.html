@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="auth-panel">
+    <h1>Secure your account</h1>
+    <p class="muted">Welcome{% if email %}, {{ email }}{% endif %}. Set a new password to finish activating your profile.</p>
+    {% if error %}
+    <div class="alert error">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="/first-login" class="auth-form">
+        <label>New password
+            <input type="password" name="new_password" minlength="8" required autocomplete="new-password">
+        </label>
+        <label>Confirm password
+            <input type="password" name="confirm_password" minlength="8" required autocomplete="new-password">
+        </label>
+        <button type="submit">Save and continue</button>
+    </form>
+</section>
+{% endblock %}

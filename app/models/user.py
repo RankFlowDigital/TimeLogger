@@ -16,5 +16,8 @@ class User(Base):
     role = Column(user_role_enum, nullable=False, default="MEMBER")
     is_active = Column(Boolean, default=True)
     timezone = Column(String, nullable=True)
+    invited_at = Column(DateTime, nullable=True)
+    joined_at = Column(DateTime, nullable=True)
+    must_reset_password = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())

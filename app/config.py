@@ -1,4 +1,6 @@
 from functools import lru_cache
+
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -9,6 +11,14 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/team_monitor"
     environment: str = "development"
     rollcall_tick_token: str | None = None
+    smtp_host: str | None = Field(default=None, alias="MAIL_SMTP_HOST")
+    smtp_port: int = Field(default=587, alias="MAIL_SMTP_PORT")
+    smtp_username: str | None = Field(default=None, alias="MAIL_SMTP_USERNAME")
+    smtp_password: str | None = Field(default=None, alias="MAIL_SMTP_PASSWORD")
+    smtp_from: str | None = Field(default=None, alias="MAIL_SENDER_ADDRESS")
+    smtp_from_name: str | None = Field(default=None, alias="MAIL_SENDER_NAME")
+    smtp_use_tls: bool = Field(default=True, alias="MAIL_SMTP_TLS")
+    smtp_use_ssl: bool = Field(default=False, alias="MAIL_SMTP_SSL")
 
     class Config:
         env_file = ".env"
