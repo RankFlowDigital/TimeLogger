@@ -1,13 +1,37 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="auth-card">
-    <h1>Login</h1>
-    {% if error %}<p class="error">{{ error }}</p>{% endif %}
-    <form method="post" action="/login">
-        <label>Email<input type="email" name="email" required></label>
-        <label>Password<input type="password" name="password" required></label>
-        <button type="submit">Sign In</button>
-    </form>
-    <p>No account? <a href="/signup">Sign up</a></p>
+<section class="auth-layout">
+    <article class="auth-hero">
+        <p class="auth-kicker">Fundamental Ecom LLC</p>
+        <h1>Enterprise operations command center</h1>
+        <p>Monitor live sessions, escalate roll-calls, and keep distributed teams synchronized from a single secure cockpit.</p>
+        <ul class="auth-hero-highlights">
+            <li>Realtime workforce telemetry</li>
+            <li>Audit-ready attendance history</li>
+            <li>Encrypted messaging hub</li>
+        </ul>
+    </article>
+    <article class="auth-card auth-card--elevated">
+        <div class="auth-brand">
+            <span class="auth-avatar">FE</span>
+            <div>
+                <p class="muted">Welcome back</p>
+                <strong>Sign in to continue</strong>
+            </div>
+        </div>
+        {% if error %}
+        <div class="alert error">{{ error }}</div>
+        {% endif %}
+        <form method="post" action="/login" class="auth-form">
+            <label>Email address
+                <input type="email" name="email" required autocomplete="username">
+            </label>
+            <label>Password
+                <input type="password" name="password" required autocomplete="current-password">
+            </label>
+            <button type="submit">Sign In</button>
+        </form>
+        <p class="auth-meta">Need an account? <a href="/signup">Request access</a></p>
+    </article>
 </section>
 {% endblock %}

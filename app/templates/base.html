@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta content="width=device-width, initial-scale=1" name="viewport">
-    <title>{{ title if title else "Team Monitor" }}</title>
+    <title>{{ title if title else "Fundamental Ecom LLC" }}</title>
     <link rel="stylesheet" href="/static/css/styles.css">
     <script defer src="/static/js/app.js"></script>
     <script defer src="/static/js/rollcall.js"></script>
 </head>
 <body>
 <header class="site-header">
-    <div class="logo">Team Monitor</div>
+    <div class="logo">Fundamental Ecom LLC</div>
     {% if user %}
     <nav>
         <a href="/dashboard">Dashboard</a>
@@ -46,7 +46,7 @@
                                 <button type="button" data-thread="team">
                                     <div class="thread-avatar">TM</div>
                                     <div class="thread-body">
-                                        <strong>Team Monitor</strong>
+                                        <strong>Fundamental Ecom LLC</strong>
                                         <span>All hands • active</span>
                                     </div>
                                     <div class="thread-meta">
@@ -113,7 +113,7 @@
             <section class="chat-conversation">
                 <header class="chat-conversation__header">
                     <div>
-                        <h3>Team Monitor</h3>
+                        <h3>Fundamental Ecom LLC</h3>
                         <p>Active now • Broadcast to members</p>
                     </div>
                     <div class="chat-conversation__actions">
@@ -145,16 +145,6 @@
                         <button type="submit">Send</button>
                     </div>
                 </form>
-                <section class="chat-utilities">
-                    <div>
-                        <h3>Team presence</h3>
-                        <ul class="team-roster" data-team-roster></ul>
-                    </div>
-                    <div>
-                        <h3>Roll-call tracker</h3>
-                        <ul class="rollcall-log" data-rollcall-log></ul>
-                    </div>
-                </section>
             </section>
             <div class="chat-column-handle" data-chat-column-resizer aria-hidden="true"></div>
         </div>

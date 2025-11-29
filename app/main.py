@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -7,6 +8,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from starlette.templating import Jinja2Templates
 
 from .config import get_settings
+from .migration_runner import run_migrations_once
 from .routers import (
     admin,
     auth,
@@ -20,6 +22,7 @@ from .routers import (
 
 settings = get_settings()
 base_path = Path(__file__).resolve().parent
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title=settings.app_name)
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key, session_cookie=settings.session_cookie)
@@ -33,6 +36,15 @@ async def root(request: Request):
     if user:
         return RedirectResponse(url="/dashboard", status_code=302)
     return RedirectResponse(url="/login", status_code=302)
+
+
+@app.on_event("startup")
+async def ensure_schema() -> None:
+    try:
+        run_migrations_once()
+    except Exception as exc:  # pragma: no cover - startup failures should surface
+        logger.exception("Database migration failed")
+        raise
 
 
 app.include_router(auth.router)

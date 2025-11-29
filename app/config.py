@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    app_name: str = "Team Monitor"
+    app_name: str = "Fundamental Ecom LLC"
     secret_key: str = "change-me"
     session_cookie: str = "team_monitor_session"
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/team_monitor"
