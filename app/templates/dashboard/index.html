@@ -9,6 +9,7 @@
                 <p class="status-line">
                     <span class="status-badge" data-status-badge>--</span>
                     <span class="status-meta" data-status-meta>Awaiting first action</span>
+                    <span class="status-duration" data-status-duration></span>
                 </p>
             </div>
             <div class="hero-clock">
@@ -61,14 +62,7 @@
             </div>
             <p class="timezone-feedback" data-timezone-feedback></p>
         </div>
-    </section>
-
-    <section class="card timeline-card">
-        <header>
-            <h2>Today&apos;s timeline</h2>
-            <p class="muted">Click an action to see details.</p>
-        </header>
-        <ol class="timeline" data-timeline></ol>
+        <p class="control-feedback" data-control-feedback></p>
     </section>
 
     <section class="card insights-card">
@@ -98,6 +92,22 @@
             <h3>Activity log</h3>
             <ul data-activity-log></ul>
         </section>
+    </section>
+
+    <section class="card team-presence-card">
+        <header>
+            <h2>Team presence</h2>
+            <p class="muted">Live status across your org.</p>
+        </header>
+        <ul class="team-presence-list" data-team-roster></ul>
+    </section>
+
+    <section class="card timeline-card">
+        <header>
+            <h2>Today&apos;s timeline</h2>
+            <p class="muted">Click an action to see details.</p>
+        </header>
+        <ol class="timeline" data-timeline></ol>
     </section>
 </div>
 <script id="dashboard-state" type="application/json">{{ dashboard_state | tojson | safe }}</script>

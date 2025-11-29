@@ -18,6 +18,23 @@
     {% endif %}
 </section>
 <section class="panel">
+    <h2>Invite teammate</h2>
+    <p class="muted">Send credentials to a new teammate and optionally select their default timezone.</p>
+    <form class="invite-form" data-invite-form>
+        <input type="text" name="full_name" placeholder="Full name" required>
+        <input type="email" name="email" placeholder="Email" required>
+        <select name="role">
+            <option value="MEMBER">Member</option>
+            <option value="ADMIN">Admin</option>
+        </select>
+        <select name="timezone" data-invite-timezone>
+            <option value="">No timezone preference</option>
+        </select>
+        <button type="submit">Send invite</button>
+        <p class="form-feedback" data-invite-feedback></p>
+    </form>
+</section>
+<section class="panel">
     <h2>Team Status</h2>
     <table>
         <thead>

@@ -100,6 +100,42 @@ function formatDateTime(value, { includeDate = false } = {}) {
   return formatWithTimezone(date, options);
 }
 
+function toTitleCase(value) {
+  if (!value) return "";
+  return value
+    .replace(/_/g, " ")
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase())
+    .trim();
+}
+
+function initialsFromName(name) {
+  if (!name) return "--";
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || "")
+    .join("") || "--";
+}
+
+function classifyPresenceStatus(status) {
+  const normalized = (status || "OFFLINE").toUpperCase();
+  if (normalized === "WORK") {
+    return { label: "Working", token: "present" };
+  }
+  if (normalized === "LUNCH") {
+    return { label: "On lunch", token: "break" };
+  }
+  if (normalized === "SHORT_BREAK") {
+    return { label: "On break", token: "break" };
+  }
+  if (normalized === "OFFLINE") {
+    return { label: "Offline", token: "offline" };
+  }
+  return { label: toTitleCase(normalized) || "Active", token: "present" };
+}
+
 function renderStatus(state) {
   const badge = document.querySelector("[data-status-badge]");
   const meta = document.querySelector("[data-status-meta]");
@@ -184,16 +220,38 @@ function renderRoster(state) {
   roster.innerHTML = "";
   (state?.team_roster || []).forEach((member) => {
     const li = document.createElement("li");
-    const label = document.createElement("strong");
-    label.textContent = member.name;
-    const meta = document.createElement("span");
-    const since = member.since ? formatDateTime(member.since) : "";
-    meta.textContent = member.status === "OFFLINE" ? "offline" : `${member.status} · ${since}`;
-    li.append(label, meta);
+    li.className = "presence-member";
+
+    const avatar = document.createElement("span");
+    avatar.className = "presence-avatar";
+    avatar.textContent = initialsFromName(member.name);
+
+    const meta = document.createElement("div");
+    meta.className = "presence-meta";
+    const name = document.createElement("strong");
+    name.textContent = member.name;
+    const details = document.createElement("span");
+    const detailParts = [toTitleCase(member.role), member.timezone].filter(Boolean);
+    details.textContent = detailParts.join(" • ") || "Role pending";
+    meta.append(name, details);
+
+    const indicator = document.createElement("span");
+    const presence = classifyPresenceStatus(member.status);
+    indicator.className = "presence-state";
+    indicator.dataset.state = presence.token;
+    indicator.textContent = presence.label;
+    if (member.since && presence.token !== "offline") {
+      const since = document.createElement("small");
+      since.textContent = `since ${formatDateTime(member.since)}`;
+      indicator.appendChild(since);
+    }
+
+    li.append(avatar, meta, indicator);
     roster.appendChild(li);
   });
   if (!roster.children.length) {
     const li = document.createElement("li");
+    li.className = "presence-member muted";
     li.textContent = "No teammates yet";
     roster.appendChild(li);
   }
