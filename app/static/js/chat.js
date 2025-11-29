@@ -208,9 +208,10 @@ function initInviteForm() {
 
 function initChatWidthControl() {
   const root = document.documentElement;
+  const shell = document.querySelector("[data-chat-shell]");
   const dockHandle = document.querySelector("[data-chat-dock-resizer]");
   const columnHandle = document.querySelector("[data-chat-column-resizer]");
-  if (!dockHandle && !columnHandle) return;
+  if (!shell || (!dockHandle && !columnHandle)) return;
 
   const dockRange = { min: 460, max: 1100 };
   const sidebarRange = { min: 260, max: 420 };
