@@ -20,3 +20,4 @@ class ChatRoom(Base):
     updated_at = Column(DateTime, onupdate=func.now())
 
     members = relationship("ChatRoomMember", back_populates="room", cascade="all, delete-orphan")
+    reads = relationship("ChatRoomRead", back_populates="room", cascade="all, delete-orphan")

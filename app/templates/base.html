@@ -31,36 +31,65 @@
         {% block content %}{% endblock %}
     </main>
     {% if user %}
-    <aside class="chat-dock" id="chat-dock" data-user-role="{{ user.role }}">
+    <aside class="chat-dock" id="chat-dock" data-user-role="{{ user.role }}" data-user-id="{{ user.id }}">
         <div class="chat-dock-handle" data-chat-dock-resizer aria-hidden="true"></div>
         <div class="chat-shell" data-chat-shell>
             <section class="chat-sidebar" data-chat-sidebar>
                 <div class="chat-sidebar__header">
-                    <div>
-                        <p class="muted">Messaging</p>
-                        <strong>Rooms & Direct</strong>
+                    <div class="chat-sidebar__title">
+                        <p class="muted">Chats</p>
+                        <strong>Messenger Inbox</strong>
                     </div>
-                    {% if user.role in ["OWNER", "ADMIN"] %}
-                    <button type="button" class="chat-manage-button" data-chat-manage-trigger>Manage</button>
-                    {% endif %}
+                    <div class="chat-sidebar__controls">
+                        <button type="button" class="chat-icon-button" data-chat-refresh title="Refresh conversations">⟳</button>
+                        {% if user.role in ["OWNER", "ADMIN"] %}
+                        <button type="button" class="chat-pill-button" data-chat-manage-trigger>
+                            <span>New group</span>
+                        </button>
+                        {% endif %}
+                    </div>
                 </div>
-                <ul class="chat-thread-list" data-chat-thread-list>
-                    <li class="chat-panel-empty">Loading chats…</li>
-                </ul>
+                <label class="chat-search">
+                    <span class="chat-search__icon">🔍</span>
+                    <input type="search" placeholder="Search chats" data-chat-thread-search autocomplete="off">
+                </label>
+                <div class="chat-thread-filters" data-chat-thread-filters>
+                    <button type="button" class="chat-filter-button is-active" data-chat-thread-filter="all">All</button>
+                    <button type="button" class="chat-filter-button" data-chat-thread-filter="unread">Unread</button>
+                    <button type="button" class="chat-filter-button" data-chat-thread-filter="groups">Groups</button>
+                    <button type="button" class="chat-filter-button" data-chat-thread-filter="direct">Direct</button>
+                </div>
+                <div class="chat-thread-scroll" data-chat-thread-scroll>
+                    <ul class="chat-thread-list" data-chat-thread-list>
+                        <li class="chat-panel-empty">Loading chats…</li>
+                    </ul>
+                </div>
             </section>
-            <section class="chat-conversation">
+            <section class="chat-conversation" data-chat-conversation>
                 <header class="chat-conversation__header">
-                    <div>
+                    <div class="chat-room-heading">
                         <h3 data-chat-room-name>Fundamental Ecom LLC</h3>
                         <p data-chat-room-meta>Active now • Broadcast to members</p>
+                        <div class="chat-room-presence" data-chat-room-presence></div>
                     </div>
                     <div class="chat-conversation__actions">
-                        <button type="button" aria-label="Start voice call">🔊</button>
-                        <button type="button" aria-label="Start video call">📹</button>
-                        <button type="button" aria-label="More chat actions">⋯</button>
+                        <button type="button" class="chat-icon-button" data-chat-room-action="add" title="Add member">➕</button>
+                        <button type="button" class="chat-icon-button" data-chat-room-action="remove" title="Remove member">➖</button>
+                        <button type="button" class="chat-icon-button" data-chat-room-action="delete" title="Delete group">🗑</button>
+                        <button type="button" class="chat-icon-button" data-chat-room-action="more" title="More actions">⋯</button>
                     </div>
                 </header>
-                <div class="chat-thread-window">
+                <div class="chat-pinned" data-chat-pinned hidden>
+                    <div>
+                        <p class="chat-pinned__label">Pinned system update</p>
+                        <strong class="chat-pinned__title" data-chat-pinned-title></strong>
+                        <p class="chat-pinned__meta" data-chat-pinned-meta></p>
+                    </div>
+                    <button type="button" class="chat-icon-button" data-chat-pinned-dismiss title="Collapse">
+                        ×
+                    </button>
+                </div>
+                <div class="chat-thread-window" data-chat-thread-window>
                     <div class="rollcall-banner" id="rollcall-panel" hidden>
                         <div>
                             <p class="rollcall-label">Roll call in progress</p>
@@ -73,16 +102,32 @@
                         </div>
                     </div>
                     <div class="chat-messages" data-chat-messages="room"></div>
+                    <button type="button" class="chat-scroll-latest" data-chat-scroll-latest hidden>
+                        Jump to latest
+                    </button>
                 </div>
-                <form class="chat-composer" data-chat-form="room">
+                <form class="chat-composer" data-chat-form="room" autocomplete="off">
+                    <div class="chat-composer__toolbar">
+                        <div class="chat-composer__tools">
+                            <label class="chat-icon-button" title="Attach files">
+                                📎
+                                <input type="file" data-chat-file-input multiple hidden>
+                            </label>
+                            <button type="button" class="chat-icon-button" data-chat-emoji title="Emoji">😊</button>
+                            <button type="button" class="chat-icon-button" data-chat-mention-trigger title="Mention">@</button>
+                        </div>
+                        <span class="chat-composer__hint" data-chat-composer-hint>Mentions, attachments, and roll-call alerts are supported.</span>
+                    </div>
                     <label class="sr-only" for="dock-chat-input">Message</label>
-                    <textarea id="dock-chat-input" name="content" rows="3" placeholder="Aa"></textarea>
-                    <div class="chat-composer__actions">
-                        <button type="button" aria-label="Add attachment">📎</button>
-                        <button type="button" aria-label="Add emoji">😊</button>
+                    <textarea id="dock-chat-input" name="content" rows="3" placeholder="Message..." data-chat-input></textarea>
+                    <div class="chat-composer__bottom">
+                        <div class="chat-composer__status" data-chat-composer-status></div>
                         <button type="submit">Send</button>
                     </div>
                 </form>
+                <div class="mention-popover" data-mention-popover hidden>
+                    <ul class="mention-options" data-mention-options></ul>
+                </div>
             </section>
             <div class="chat-column-handle" data-chat-column-resizer aria-hidden="true"></div>
         </div>
