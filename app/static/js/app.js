@@ -90,6 +90,14 @@ const statusTicker = {
   target: null,
   offsetMs: 0,
 };
+let dashboardRefreshHandle = null;
+
+const rollcallStatusLabels = {
+  PENDING: "Awaiting",
+  PASSED: "Cleared",
+  LATE: "Late",
+  MISSED: "Missed",
+};
 
 function formatDateTime(value, { includeDate = false } = {}) {
   if (!value) return "--";
@@ -98,6 +106,15 @@ function formatDateTime(value, { includeDate = false } = {}) {
     ? { dateStyle: "medium", timeStyle: "short" }
     : { timeStyle: "short" };
   return formatWithTimezone(date, options);
+}
+
+function formatDurationUntil(value) {
+  if (!value) return "";
+  const target = new Date(value);
+  const diff = Math.max(0, Math.floor((target - new Date()) / 1000));
+  const minutes = Math.floor(diff / 60);
+  const seconds = String(diff % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
 }
 
 function toTitleCase(value) {
@@ -261,15 +278,37 @@ function renderRollCallHistory(state) {
   const list = document.querySelector("[data-rollcall-log]");
   if (!list) return;
   list.innerHTML = "";
-  (state?.roll_calls || []).slice().reverse().slice(0, 5).forEach((rc) => {
+  const entries = state?.org_roll_call_history || [];
+  entries.forEach((rc) => {
     const li = document.createElement("li");
-    const status = rc.result.replace(/_/g, " ");
-    li.innerHTML = `<strong>${status}</strong><span>${formatDateTime(rc.triggered_at)}</span>`;
+    li.className = "rollcall-entry";
+    if (rc.result === "PENDING") {
+      li.classList.add("rollcall-entry--pending");
+    }
+    const meta = document.createElement("div");
+    meta.className = "rollcall-meta";
+    const name = document.createElement("strong");
+    name.textContent = rc.user_name;
+    const stamp = document.createElement("span");
+    stamp.textContent = formatDateTime(rc.triggered_at, { includeDate: true });
+    meta.append(name, stamp);
+
+    const status = document.createElement("span");
+    const resultKey = (rc.result || "UNKNOWN").toUpperCase();
+    status.className = "rollcall-status";
+    status.dataset.state = resultKey;
+    if (resultKey === "PENDING" && rc.deadline_at) {
+      status.textContent = `Awaiting • ${formatDurationUntil(rc.deadline_at)}`;
+    } else {
+      status.textContent = rollcallStatusLabels[resultKey] || resultKey.toLowerCase();
+    }
+
+    li.append(meta, status);
     list.appendChild(li);
   });
   if (!list.children.length) {
     const li = document.createElement("li");
-    li.textContent = "No roll-calls today";
+    li.textContent = "No recent roll calls";
     list.appendChild(li);
   }
 }
@@ -450,8 +489,16 @@ function hydrateDashboard() {
   startClock();
 }
 
+function startDashboardAutoRefresh() {
+  if (dashboardRefreshHandle || !dashboardRuntime.hasBootstrap) return;
+  dashboardRefreshHandle = setInterval(() => {
+    dashboardRuntime.refresh();
+  }, 15000);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   hydrateDashboard();
+  startDashboardAutoRefresh();
 });
 
 function startStatusTicker() {

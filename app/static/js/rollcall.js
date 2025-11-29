@@ -1,10 +1,19 @@
 const rollcallPanel = document?.getElementById("rollcall-panel");
 const rollcallButton = document?.getElementById("rollcall-respond");
 const rollcallDeadlineText = document?.querySelector("[data-rollcall-deadline]");
+const rollcallTargetText = document?.querySelector("[data-rollcall-target]");
+const rollcallNoteText = document?.querySelector("[data-rollcall-note]");
 let activeRollCallId = null;
+let orgActiveRollCalls = [];
 let audio;
 let deadlineAt = null;
 let countdownHandle = null;
+let dashboardSubscribed = false;
+
+document.addEventListener("DOMContentLoaded", () => {
+  bindOrgRollCallFeed();
+  pollRollCall();
+});
 
 async function pollRollCall() {
   try {
@@ -15,6 +24,7 @@ async function pollRollCall() {
       activeRollCallId = data.pending.id;
       deadlineAt = new Date(data.pending.deadline_at);
       showRollCall();
+      window.dashboardRuntime?.refresh?.();
     } else if (!data.pending) {
       hideRollCall();
     }
@@ -23,9 +33,60 @@ async function pollRollCall() {
   }
 }
 
+function bindOrgRollCallFeed() {
+  if (dashboardSubscribed || !window.dashboardRuntime) return;
+  dashboardSubscribed = true;
+  window.dashboardRuntime.subscribe((state) => {
+    updateOrgRollCallPanel(state);
+  });
+  updateOrgRollCallPanel(window.dashboardRuntime.getState());
+}
+
+function updateOrgRollCallPanel(state) {
+  if (!rollcallPanel || !state) return;
+  const active = state.active_roll_calls || [];
+  orgActiveRollCalls = active;
+  if (!active.length) {
+    if (!activeRollCallId) {
+      rollcallPanel.hidden = true;
+      if (rollcallTargetText) {
+        rollcallTargetText.textContent = "Waiting for the next call";
+      }
+      if (rollcallNoteText) {
+        rollcallNoteText.textContent = "";
+      }
+    }
+    return;
+  }
+  const current = active[0];
+  rollcallPanel.hidden = false;
+  const isSelf = current.user_id === state.user?.id;
+  if (rollcallTargetText) {
+    rollcallTargetText.textContent = isSelf ? "Roll call for you" : `Calling ${current.user_name}`;
+  }
+  if (rollcallButton) {
+    rollcallButton.disabled = !isSelf;
+    rollcallButton.hidden = false;
+    rollcallButton.textContent = isSelf ? "I'm here" : "Waiting";
+  }
+  if (rollcallNoteText) {
+    rollcallNoteText.textContent = isSelf ? "Only you can clear this alert." : `${current.user_name} must respond.`;
+  }
+  if (!isSelf && current.deadline_at) {
+    deadlineAt = new Date(current.deadline_at);
+    startCountdown();
+  }
+}
+
 function showRollCall() {
   if (!rollcallPanel) return;
   rollcallPanel.hidden = false;
+  if (rollcallTargetText) {
+    rollcallTargetText.textContent = "Roll call for you";
+  }
+  if (rollcallNoteText) {
+    rollcallNoteText.textContent = "Only you can clear this alert.";
+  }
   startCountdown();
   if (!audio) {
     audio = new Audio("/static/sounds/rollcall.mp3");
@@ -35,7 +96,6 @@ function showRollCall() {
 
 function hideRollCall() {
   if (!rollcallPanel) return;
-  rollcallPanel.hidden = true;
   activeRollCallId = null;
   deadlineAt = null;
   if (countdownHandle) {
@@ -44,6 +104,15 @@ function hideRollCall() {
   }
   if (rollcallDeadlineText) {
     rollcallDeadlineText.textContent = "You're clear";
+  }
+  if (!orgActiveRollCalls.length) {
+    rollcallPanel.hidden = true;
+    if (rollcallTargetText) {
+      rollcallTargetText.textContent = "Waiting for the next call";
+    }
+    if (rollcallNoteText) {
+      rollcallNoteText.textContent = "";
+    }
   }
 }
 
@@ -66,7 +135,7 @@ function startCountdown() {
 }
 
 rollcallButton?.addEventListener("click", async () => {
-  if (!activeRollCallId) return;
+  if (!activeRollCallId || rollcallButton?.disabled) return;
   const res = await fetch("/api/roll-calls/respond", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

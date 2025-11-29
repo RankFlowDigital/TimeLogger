@@ -85,6 +85,7 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
         .order_by(RollCall.triggered_at.asc())
         .all()
     )
+    now = datetime.utcnow()
     pending_roll_call = (
         db.query(RollCall)
         .filter(
@@ -94,6 +95,26 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
         )
         .order_by(RollCall.triggered_at.desc())
         .first()
+    )
+    org_active_roll_calls = (
+        db.query(RollCall, User.full_name)
+        .join(User, User.id == RollCall.user_id)
+        .filter(
+            RollCall.org_id == user_session["org_id"],
+            RollCall.result == "PENDING",
+            RollCall.triggered_at <= now,
+            RollCall.deadline_at > now,
+        )
+        .order_by(RollCall.triggered_at.desc())
+        .all()
+    )
+    org_roll_call_history = (
+        db.query(RollCall, User.full_name)
+        .join(User, User.id == RollCall.user_id)
+        .filter(RollCall.org_id == user_session["org_id"])
+        .order_by(RollCall.triggered_at.desc())
+        .limit(12)
+        .all()
     )
 
     active_sessions = (
@@ -189,6 +210,31 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
 
     timeline_events.sort(key=lambda entry: entry["timestamp"])
 
+    active_roll_call_payload = [
+        {
+            "id": rc.id,
+            "user_id": rc.user_id,
+            "user_name": name,
+            "result": rc.result,
+            "triggered_at": _to_iso(rc.triggered_at),
+            "deadline_at": _to_iso(rc.deadline_at),
+            "responded_at": _to_iso(rc.responded_at),
+        }
+        for rc, name in org_active_roll_calls
+    ]
+    org_roll_call_history_payload = [
+        {
+            "id": rc.id,
+            "user_id": rc.user_id,
+            "user_name": name,
+            "result": rc.result,
+            "triggered_at": _to_iso(rc.triggered_at),
+            "deadline_at": _to_iso(rc.deadline_at),
+            "responded_at": _to_iso(rc.responded_at),
+        }
+        for rc, name in org_roll_call_history
+    ]
+
     payload = {
         "user": {
             "id": user_record.id,
@@ -204,6 +250,8 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
         "timeline_events": timeline_events,
         "team_roster": team_roster,
         "pending_roll_call": None,
+        "active_roll_calls": active_roll_call_payload,
+        "org_roll_call_history": org_roll_call_history_payload,
         "work_carry_seconds": work_carry_seconds,
     }
     if open_session:

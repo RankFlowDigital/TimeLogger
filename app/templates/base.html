@@ -16,7 +16,6 @@
         <a href="/dashboard">Dashboard</a>
         <a href="/dashboard/profile">Profile</a>
         <a href="/dashboard/history">History</a>
-        <a href="/chat">Chat</a>
         {% if user.role in ["OWNER", "ADMIN"] %}
         <a href="/admin">Admin</a>
         <a href="/admin/reports">Reports</a>
@@ -140,10 +139,14 @@
                 <div class="chat-thread-window">
                     <div class="rollcall-banner" id="rollcall-panel" hidden>
                         <div>
-                            <p>Roll call in progress</p>
-                            <p class="muted"><span data-rollcall-deadline>Respond promptly</span></p>
+                            <p class="rollcall-label">Roll call in progress</p>
+                            <p class="rollcall-target" data-rollcall-target>Waiting for the next call</p>
+                            <p class="muted"><span data-rollcall-deadline>You're clear</span></p>
                         </div>
-                        <button id="rollcall-respond" type="button">I'm here</button>
+                        <div class="rollcall-actions">
+                            <button id="rollcall-respond" type="button">I'm here</button>
+                            <p class="muted" data-rollcall-note></p>
+                        </div>
                     </div>
                     <div class="chat-messages" data-chat-messages="team"></div>
                 </div>
@@ -162,7 +165,7 @@
                         <ul class="team-roster" data-team-roster></ul>
                     </div>
                     <div>
-                        <h3>Roll-call log</h3>
+                        <h3>Roll-call tracker</h3>
                         <ul class="rollcall-log" data-rollcall-log></ul>
                     </div>
                 </section>
