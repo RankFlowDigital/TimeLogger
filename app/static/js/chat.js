@@ -207,30 +207,83 @@ function initInviteForm() {
 }
 
 function initChatWidthControl() {
-  const slider = document.querySelector("[data-chat-width-slider]");
-  if (!slider) return;
-  const display = document.querySelector("[data-chat-width-display]");
   const root = document.documentElement;
-  const shell = document.querySelector(".chat-shell");
-  const min = Number(slider.min) || 260;
-  const max = Number(slider.max) || 420;
-  const defaultValue = Number(slider.value) || 320;
-  const stored = parseInt(localStorage.getItem("chatSidebarWidth"), 10);
-  const initial = Number.isFinite(stored) ? stored : defaultValue;
-  applyWidth(initial);
-  slider.value = initial;
-  slider.addEventListener("input", () => applyWidth(Number(slider.value)));
+  const shell = document.querySelector("[data-chat-shell]");
+  const dockHandle = document.querySelector("[data-chat-dock-resizer]");
+  const columnHandle = document.querySelector("[data-chat-column-resizer]");
+  if (!shell) return;
 
-  function applyWidth(raw) {
-    const value = Number.isFinite(raw) ? raw : defaultValue;
-    const clamped = Math.max(min, Math.min(max, value));
-    root.style.setProperty("--chat-sidebar-width", `${clamped}px`);
-    localStorage.setItem("chatSidebarWidth", clamped);
-    if (display) {
-      const containerWidth = shell?.clientWidth || clamped + 640;
-      const sidebarPercent = Math.min(99, Math.max(1, Math.round((clamped / containerWidth) * 100)));
-      const messagePercent = Math.max(1, 100 - sidebarPercent);
-      display.textContent = `Threads ${sidebarPercent}% · Messages ${messagePercent}%`;
-    }
+  const dockRange = { min: 460, max: 1100 };
+  const sidebarRange = { min: 260, max: 420 };
+  const conversationMin = 420;
+
+  let dockValue = clampValue(
+    parseInt(localStorage.getItem("chatDockWidth"), 10),
+    dockRange.min,
+    dockRange.max,
+    shell.clientWidth || 720
+  );
+  let sidebarValue = clampValue(
+    parseInt(localStorage.getItem("chatSidebarWidth"), 10),
+    sidebarRange.min,
+    sidebarRange.max,
+    320
+  );
+
+  applyDockWidth(dockValue);
+  applySidebarWidth(sidebarValue);
+
+  dockHandle?.addEventListener("pointerdown", (event) => {
+    startDrag(event, (delta) => {
+      const next = clampValue(dockValue + delta, dockRange.min, dockRange.max);
+      applyDockWidth(next);
+    });
+  });
+
+  columnHandle?.addEventListener("pointerdown", (event) => {
+    startDrag(event, (delta) => {
+      const maxSidebar = Math.min(sidebarRange.max, dockValue - conversationMin);
+      const next = clampValue(sidebarValue + delta, sidebarRange.min, Math.max(sidebarRange.min, maxSidebar));
+      applySidebarWidth(next);
+    });
+  });
+
+  function applyDockWidth(value) {
+    dockValue = value;
+    root.style.setProperty("--chat-dock-width", `${value}px`);
+    localStorage.setItem("chatDockWidth", value);
+  }
+
+  function applySidebarWidth(value) {
+    sidebarValue = value;
+    root.style.setProperty("--chat-sidebar-width", `${value}px`);
+    localStorage.setItem("chatSidebarWidth", value);
+  }
+
+  function startDrag(event, onMove) {
+    event.preventDefault();
+    const startX = event.clientX;
+    const pointerId = event.pointerId;
+    const handle = event.currentTarget;
+    handle.setPointerCapture(pointerId);
+
+    const moveListener = (moveEvent) => {
+      const delta = moveEvent.clientX - startX;
+      onMove(delta);
+    };
+
+    const upListener = () => {
+      handle.releasePointerCapture(pointerId);
+      document.removeEventListener("pointermove", moveListener);
+      document.removeEventListener("pointerup", upListener);
+    };
+
+    document.addEventListener("pointermove", moveListener);
+    document.addEventListener("pointerup", upListener);
+  }
+
+  function clampValue(value, min, max, fallback = min) {
+    const target = Number.isFinite(value) ? value : fallback;
+    return Math.max(min, Math.min(max, target));
   }
 }
