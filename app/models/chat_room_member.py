@@ -18,4 +18,5 @@ class ChatRoomMember(Base):
     created_at = Column(DateTime, server_default=func.now())
 
     room = relationship("ChatRoom", back_populates="members")
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
+    added_by_user = relationship("User", foreign_keys=[added_by])
