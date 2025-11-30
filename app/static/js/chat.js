@@ -1201,16 +1201,24 @@ function initChatWidthControl() {
   applyDockWidth(dockValue);
   applySidebarWidth(sidebarValue);
 
-  addDragListener(dockHandle, (delta) => {
-    const next = clampValue(dockValue - delta, dockRange.min, dockRange.max);
-    applyDockWidth(next);
-  });
+  addDragListener(
+    dockHandle,
+    () => dockValue,
+    (initial, delta) => {
+      const next = clampValue(initial - delta, dockRange.min, dockRange.max);
+      applyDockWidth(next);
+    }
+  );
 
-  addDragListener(columnHandle, (delta) => {
-    const maxSidebar = Math.min(sidebarRange.max, dockValue - conversationMin);
-    const next = clampValue(sidebarValue + delta, sidebarRange.min, Math.max(sidebarRange.min, maxSidebar));
-    applySidebarWidth(next);
-  });
+  addDragListener(
+    columnHandle,
+    () => sidebarValue,
+    (initial, delta) => {
+      const maxSidebar = Math.min(sidebarRange.max, dockValue - conversationMin);
+      const next = clampValue(initial + delta, sidebarRange.min, Math.max(sidebarRange.min, maxSidebar));
+      applySidebarWidth(next);
+    }
+  );
 
   function applyDockWidth(value) {
     dockValue = value;
@@ -1224,18 +1232,18 @@ function initChatWidthControl() {
     localStorage.setItem("chatSidebarWidth", value);
   }
 
-  function addDragListener(handle, onMove) {
+  function addDragListener(handle, getInitial, onMove) {
     if (!handle || typeof onMove !== "function") return;
     const supportsPointer = window.PointerEvent !== undefined;
+    const start = (event, mode) => {
+      const initialValue = typeof getInitial === "function" ? getInitial() : 0;
+      startDrag(event, handle, (delta) => onMove(initialValue, delta), mode);
+    };
     if (supportsPointer) {
-      handle.addEventListener("pointerdown", (event) => startDrag(event, handle, onMove, "pointer"));
+      handle.addEventListener("pointerdown", (event) => start(event, "pointer"));
     } else {
-      handle.addEventListener("mousedown", (event) => startDrag(event, handle, onMove, "mouse"));
-      handle.addEventListener(
-        "touchstart",
-        (event) => startDrag(event, handle, onMove, "touch"),
-        { passive: false }
-      );
+      handle.addEventListener("mousedown", (event) => start(event, "mouse"));
+      handle.addEventListener("touchstart", (event) => start(event, "touch"), { passive: false });
     }
   }
 
