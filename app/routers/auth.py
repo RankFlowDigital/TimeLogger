@@ -2,6 +2,7 @@ from datetime import datetime
 from pathlib import Path
 
 import logging
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -109,6 +110,16 @@ async def login(
 ):
     try:
         normalized_email = email.lower()
+        parsed_url = urlparse(settings.database_url)
+        logger.info(
+            "Login attempt",
+            extra={
+                "email": normalized_email,
+                "db_host": parsed_url.hostname,
+                "db_path": parsed_url.path,
+            },
+        )
+
         user = db.query(User).filter(User.email == normalized_email).one_or_none()
         if not user:
             logger.warning("Login failed: user not found", extra={"email": normalized_email})
