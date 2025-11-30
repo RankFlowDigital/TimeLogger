@@ -197,28 +197,6 @@ function renderSummary(state) {
   }
 }
 
-function renderTimeline(state) {
-  const list = document.querySelector("[data-timeline]");
-  if (!list) return;
-  list.innerHTML = "";
-  (state?.timeline_events || []).forEach((event) => {
-    const item = document.createElement("li");
-    const time = document.createElement("time");
-    time.textContent = formatDateTime(event.timestamp);
-    const label = document.createElement("strong");
-    label.textContent = event.label;
-    const caption = document.createElement("span");
-    caption.textContent = event.type === "ROLL_CALL" ? event.phase : event.type;
-    item.append(time, label, caption);
-    list.appendChild(item);
-  });
-  if (!list.children.length) {
-    const placeholder = document.createElement("li");
-    placeholder.innerHTML = "<strong>No timeline yet</strong><span>Actions will appear here</span>";
-    list.appendChild(placeholder);
-  }
-}
-
 function renderActivityLog(state) {
   const log = document.querySelector("[data-activity-log]");
   if (!log) return;
@@ -486,7 +464,6 @@ function hydrateDashboard() {
   dashboardRuntime.subscribe((state) => {
     renderStatus(state);
     renderSummary(state);
-    renderTimeline(state);
     renderActivityLog(state);
     renderRoster(state);
     renderRollCallHistory(state);
