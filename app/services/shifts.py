@@ -141,4 +141,3 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo:
         return value.astimezone(timezone.utc)
     return value.replace(tzinfo=timezone.utc)
-*** End of File***
