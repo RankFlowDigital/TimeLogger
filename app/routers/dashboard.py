@@ -65,7 +65,9 @@ def _event_label(session_type: str, phase: str) -> str:
 
 
 def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
-    user_record = db.query(User).filter(User.id == user_session["id"]).one()
+    user_record = db.query(User).filter(User.id == user_session["id"]).one_or_none()
+    if not user_record:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired")
     timezone_value = user_record.timezone or user_session.get("timezone") or settings.default_timezone
     user_session["timezone"] = timezone_value
 
