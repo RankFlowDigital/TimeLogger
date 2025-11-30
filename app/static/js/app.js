@@ -1,4 +1,6 @@
 const DEVICE_TIMEZONE = "__device__";
+const DEFAULT_TIMEZONE = document.body?.dataset?.defaultTimezone || "America/New_York";
+const BOOTSTRAP_USER_TIMEZONE = document.body?.dataset?.userTimezone || DEFAULT_TIMEZONE;
 
 function resolveDeviceTimezone() {
   try {
@@ -21,8 +23,15 @@ const dashboardRuntime = (() => {
   }
 
   let state = bootstrapState;
-  let displayTimezone = state?.user?.timezone || resolveDeviceTimezone();
+  let timezonePreference = state?.user?.timezone ?? BOOTSTRAP_USER_TIMEZONE ?? DEFAULT_TIMEZONE;
   const listeners = new Set();
+
+  const effectiveTimezone = () => {
+    if (timezonePreference === DEVICE_TIMEZONE) {
+      return resolveDeviceTimezone();
+    }
+    return timezonePreference || DEFAULT_TIMEZONE;
+  };
 
   const notify = () => {
     if (!state) return;
@@ -58,9 +67,16 @@ const dashboardRuntime = (() => {
       return () => listeners.delete(cb);
     },
     refresh,
-    getDisplayTimezone: () => displayTimezone || resolveDeviceTimezone(),
+    getDisplayTimezone: () => effectiveTimezone(),
+    getTimezonePreference: () => timezonePreference || DEFAULT_TIMEZONE,
     setDisplayTimezone: (tz) => {
-      displayTimezone = tz || null;
+      if (tz === DEVICE_TIMEZONE || tz === null) {
+        timezonePreference = DEVICE_TIMEZONE;
+      } else if (tz) {
+        timezonePreference = tz;
+      } else {
+        timezonePreference = DEFAULT_TIMEZONE;
+      }
       if (state) {
         notify();
       }
@@ -303,7 +319,12 @@ function renderRollCallHistory(state) {
 function renderTimezoneLabel() {
   const label = document.querySelector("[data-timezone-display]");
   if (!label) return;
-  label.textContent = dashboardRuntime.getDisplayTimezone();
+  const preference = dashboardRuntime.getTimezonePreference();
+  if (preference === DEVICE_TIMEZONE) {
+    label.textContent = `Device (${resolveDeviceTimezone()})`;
+  } else {
+    label.textContent = preference || DEFAULT_TIMEZONE;
+  }
 }
 
 function startClock() {
@@ -363,25 +384,25 @@ function initTimezoneControls() {
   populateTimezoneOptions(select, { includeDevice: true });
   const inviteSelects = document.querySelectorAll("[data-invite-timezone]");
   inviteSelects.forEach((el) => populateTimezoneOptions(el));
-  const current = dashboardRuntime.getDisplayTimezone();
-  select.value = current && Array.from(select.options).some((opt) => opt.value === current)
-    ? current
+  const preference = dashboardRuntime.getTimezonePreference();
+  select.value = preference && Array.from(select.options).some((opt) => opt.value === preference)
+    ? preference
     : DEVICE_TIMEZONE;
   select.addEventListener("change", () => {
-    const value = select.value === DEVICE_TIMEZONE ? null : select.value;
+    const value = select.value === DEVICE_TIMEZONE ? DEVICE_TIMEZONE : select.value;
     dashboardRuntime.setDisplayTimezone(value);
     renderTimezoneLabel();
   });
   const reset = document.querySelector("[data-timezone-reset]");
   reset?.addEventListener("click", () => {
     select.value = DEVICE_TIMEZONE;
-    dashboardRuntime.setDisplayTimezone(null);
+    dashboardRuntime.setDisplayTimezone(DEVICE_TIMEZONE);
     renderTimezoneLabel();
   });
   const feedback = document.querySelector("[data-timezone-feedback]");
   const save = document.querySelector("[data-timezone-save]");
   save?.addEventListener("click", async () => {
-    const value = select.value === DEVICE_TIMEZONE ? null : select.value;
+    const value = select.value === DEVICE_TIMEZONE ? DEVICE_TIMEZONE : select.value;
     try {
       const res = await fetch("/api/users/timezone", {
         method: "POST",
@@ -588,7 +609,7 @@ function initProfilePage() {
   const root = document.querySelector("[data-profile-page]");
   if (!root) return;
   const preferredTimezone = root.getAttribute("data-user-timezone");
-  dashboardRuntime.setDisplayTimezone(preferredTimezone || null);
+  dashboardRuntime.setDisplayTimezone(preferredTimezone || DEFAULT_TIMEZONE);
   wirePasswordForm(root);
   wireReportForm(root);
 }

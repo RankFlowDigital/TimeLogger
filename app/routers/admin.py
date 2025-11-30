@@ -8,9 +8,11 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import Leave, Organization, Shift, User, WorkSession
 from ..services import rollcall_scheduler
+from ..config import get_settings
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Path(__file__).resolve().parents[1] / "templates"
+settings = get_settings()
 
 
 def _get_admin(request: Request, db: Session) -> tuple[dict | None, User | None]:
@@ -27,7 +29,10 @@ def _render(request: Request, template_name: str, context: dict) -> HTMLResponse
     from starlette.templating import Jinja2Templates
 
     template = Jinja2Templates(directory=templates)
-    return template.TemplateResponse(template_name, context)
+    ctx = dict(context)
+    ctx.setdefault("user", request.session.get("user"))
+    ctx.setdefault("default_timezone", settings.default_timezone)
+    return template.TemplateResponse(template_name, ctx)
 
 
 @router.get("", response_class=HTMLResponse)

@@ -9,15 +9,21 @@ from ..db import get_db
 from ..models import RollCall, User, WorkSession
 from ..services.attendance import build_summary_for_day
 from ..services.reporting import get_user_summary
+from ..config import get_settings
+from ..constants import DEVICE_TIMEZONE
 
 router = APIRouter(tags=["dashboard"])
 templates = Path(__file__).resolve().parents[1] / "templates"
+settings = get_settings()
 
 
 def _ensure_auth(request: Request) -> dict:
     user = request.session.get("user")
     if not user:
-        raise RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+        return None
+    if not user.get("timezone"):
+        user["timezone"] = settings.default_timezone
+        request.session["user"] = user
     return user
 
 
@@ -25,7 +31,10 @@ def _render(request: Request, template_name: str, context: dict, status_code: in
     from starlette.templating import Jinja2Templates
 
     template = Jinja2Templates(directory=templates)
-    return template.TemplateResponse(template_name, context, status_code=status_code)
+    ctx = dict(context)
+    ctx.setdefault("user", request.session.get("user"))
+    ctx.setdefault("default_timezone", settings.default_timezone)
+    return template.TemplateResponse(template_name, ctx, status_code=status_code)
 
 
 def _to_iso(value: datetime | None) -> str | None:
@@ -57,7 +66,8 @@ def _event_label(session_type: str, phase: str) -> str:
 
 def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
     user_record = db.query(User).filter(User.id == user_session["id"]).one()
-    user_session.setdefault("timezone", user_record.timezone)
+    timezone_value = user_record.timezone or user_session.get("timezone") or settings.default_timezone
+    user_session["timezone"] = timezone_value
 
     summary = build_summary_for_day(db, user_session["id"], date.today())
     open_session = (
@@ -134,12 +144,17 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
     team_roster = []
     for member in roster_members:
         live_session = active_lookup.get(member.id)
+        display_timezone = (
+            "Device time"
+            if member.timezone == DEVICE_TIMEZONE
+            else member.timezone or settings.default_timezone
+        )
         team_roster.append(
             {
                 "id": member.id,
                 "name": member.full_name,
                 "role": member.role,
-                "timezone": member.timezone,
+                "timezone": display_timezone,
                 "status": live_session.session_type if live_session else "OFFLINE",
                 "since": live_session.started_at.isoformat() if live_session else None,
             }
@@ -241,7 +256,7 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
             "id": user_record.id,
             "full_name": user_record.full_name,
             "role": user_record.role,
-            "timezone": user_record.timezone,
+            "timezone": timezone_value,
         },
         "summary": summary.dict(),
         "server_time": _to_iso(datetime.utcnow()),
@@ -272,7 +287,7 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_home(request: Request, db: Session = Depends(get_db)):
-    user_session = request.session.get("user")
+    user_session = _ensure_auth(request)
     if not user_session:
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
@@ -291,7 +306,7 @@ async def dashboard_home(request: Request, db: Session = Depends(get_db)):
 
 @router.get("/api/dashboard/state")
 async def dashboard_state_api(request: Request, db: Session = Depends(get_db)):
-    user_session = request.session.get("user")
+    user_session = _ensure_auth(request)
     if not user_session:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = _build_dashboard_payload(db, user_session)
@@ -306,7 +321,7 @@ async def dashboard_history(
     preset: str | None = None,
     db: Session = Depends(get_db),
 ):
-    user_session = request.session.get("user")
+    user_session = _ensure_auth(request)
     if not user_session:
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 
@@ -356,7 +371,7 @@ async def dashboard_history(
 
 @router.get("/dashboard/profile", response_class=HTMLResponse)
 async def dashboard_profile(request: Request, target_date: str | None = None, db: Session = Depends(get_db)):
-    user_session = request.session.get("user")
+    user_session = _ensure_auth(request)
     if not user_session:
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
 

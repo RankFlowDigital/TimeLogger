@@ -16,10 +16,13 @@ from ..schemas.report import UserReportQuery
 from ..schemas.user import ChangePasswordRequest, InviteUserRequest, TimezonePreference
 from ..services.mailer import send_invitation_email
 from ..services.reporting import get_user_summary
+from ..config import get_settings
+from ..constants import DEVICE_TIMEZONE
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/users", tags=["users"])
+settings = get_settings()
 
 
 def _require_user(request: Request) -> dict:
@@ -30,11 +33,13 @@ def _require_user(request: Request) -> dict:
 
 
 def _validate_timezone(value: str | None) -> str | None:
+    if value == DEVICE_TIMEZONE:
+        return DEVICE_TIMEZONE
     if not value:
-        return None
+        return settings.default_timezone
     candidate = value.strip()
     if not candidate:
-        return None
+        return settings.default_timezone
     try:
         ZoneInfo(candidate)
     except Exception as exc:  # pragma: no cover - defensive guard
@@ -55,8 +60,9 @@ async def update_timezone(
         raise HTTPException(status_code=404, detail="User not found")
     user.timezone = tz_value
     db.commit()
-    user_session["timezone"] = tz_value
-    return JSONResponse({"status": "updated", "timezone": tz_value})
+    session_timezone = tz_value if tz_value == DEVICE_TIMEZONE else tz_value or settings.default_timezone
+    user_session["timezone"] = session_timezone
+    return JSONResponse({"status": "updated", "timezone": session_timezone})
 
 
 @router.post("/invite")

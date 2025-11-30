@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     session_cookie: str = "team_monitor_session"
     database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/team_monitor"
     environment: str = "development"
+    default_timezone: str = "America/New_York"
     rollcall_tick_token: str | None = None
     smtp_host: str | None = Field(default=None, alias="MAIL_SMTP_HOST")
     smtp_port: int = Field(default=587, alias="MAIL_SMTP_PORT")

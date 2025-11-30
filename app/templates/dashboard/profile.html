@@ -3,7 +3,7 @@
 {% set name_parts = profile_user.full_name.split() if profile_user.full_name else [] %}
 {% set initials_seed = (name_parts[0][:1] if name_parts|length > 0 else (profile_user.full_name[:1] if profile_user.full_name else '')) + (name_parts[1][:1] if name_parts|length > 1 else '') %}
 {% set initials = initials_seed|upper if initials_seed else 'TM' %}
-<div class="profile-page" data-profile-page data-user-timezone="{{ profile_user.timezone or '' }}">
+<div class="profile-page" data-profile-page data-user-timezone="{{ profile_user.timezone or default_timezone }}">
     <div class="profile-columns">
         <section class="card profile-card">
             <header class="profile-identity">

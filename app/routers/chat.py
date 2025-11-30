@@ -10,9 +10,11 @@ from sqlalchemy.orm import Session, aliased
 from ..db import get_db
 from ..models import ChatRoom, ChatRoomMember, ChatRoomRead, Message, User
 from ..schemas.chat import ChatMessagePayload, ChatRoomCreate, ChatRoomMembersPayload, ChatRoomUpdate
+from ..config import get_settings
 
 router = APIRouter(tags=["chat"])
 templates = Path(__file__).resolve().parents[1] / "templates"
+settings = get_settings()
 
 DEFAULT_ROOM_SETTINGS = {
     "allow_media": True,
@@ -47,7 +49,10 @@ def _render(request: Request, template_name: str, context: dict) -> HTMLResponse
     from starlette.templating import Jinja2Templates
 
     template = Jinja2Templates(directory=templates)
-    return template.TemplateResponse(template_name, context)
+    ctx = dict(context)
+    ctx.setdefault("user", request.session.get("user"))
+    ctx.setdefault("default_timezone", settings.default_timezone)
+    return template.TemplateResponse(template_name, ctx)
 
 
 def _require_user(request: Request) -> dict:

@@ -8,7 +8,7 @@
     <script defer src="/static/js/app.js"></script>
     <script defer src="/static/js/rollcall.js"></script>
 </head>
-<body>
+<body data-default-timezone="{{ default_timezone }}" data-user-timezone="{{ user.timezone if user and user.timezone else default_timezone }}">
 <header class="site-header">
     <div class="logo">Fundamental Ecom LLC</div>
     {% if user %}

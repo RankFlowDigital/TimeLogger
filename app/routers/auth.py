@@ -10,17 +10,32 @@ import bcrypt
 
 from ..db import get_db
 from ..models import Organization, User
+from ..config import get_settings
 
 router = APIRouter(tags=["auth"])
 templates = Path(__file__).resolve().parents[1] / "templates"
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 
 def _render(request: Request, template_name: str, context: dict, status_code: int = 200) -> HTMLResponse:
     from starlette.templating import Jinja2Templates
 
     template = Jinja2Templates(directory=templates)
-    return template.TemplateResponse(template_name, context, status_code=status_code)
+    ctx = dict(context)
+    ctx.setdefault("user", request.session.get("user"))
+    ctx.setdefault("default_timezone", settings.default_timezone)
+    return template.TemplateResponse(template_name, ctx, status_code=status_code)
+
+
+def _session_payload(user: User) -> dict:
+    return {
+        "id": user.id,
+        "org_id": user.org_id,
+        "role": user.role,
+        "full_name": user.full_name,
+        "timezone": user.timezone or settings.default_timezone,
+    }
 
 
 def get_password_hash(password: str) -> str:
@@ -70,18 +85,13 @@ async def signup(
         full_name=full_name,
         password_hash=get_password_hash(password),
         role=role,
+        timezone=settings.default_timezone,
         joined_at=datetime.utcnow(),
     )
     db.add(user)
     db.commit()
 
-    request.session["user"] = {
-        "id": user.id,
-        "org_id": user.org_id,
-        "role": user.role,
-        "full_name": user.full_name,
-        "timezone": user.timezone,
-    }
+    request.session["user"] = _session_payload(user)
     return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
 
 
@@ -128,13 +138,7 @@ async def login(
             user.joined_at = datetime.utcnow()
             db.commit()
 
-        request.session["user"] = {
-            "id": user.id,
-            "org_id": user.org_id,
-            "role": user.role,
-            "full_name": user.full_name,
-            "timezone": user.timezone,
-        }
+        request.session["user"] = _session_payload(user)
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
     except Exception:
         logger.exception("Login failed")
@@ -203,11 +207,5 @@ async def complete_first_login(
     db.commit()
 
     request.session.clear()
-    request.session["user"] = {
-        "id": user.id,
-        "org_id": user.org_id,
-        "role": user.role,
-        "full_name": user.full_name,
-        "timezone": user.timezone,
-    }
+    request.session["user"] = _session_payload(user)
     return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
