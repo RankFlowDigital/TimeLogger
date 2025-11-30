@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 from sqlalchemy.orm import Session, selectinload
-from pydantic import BaseModel, conlist
+from pydantic import BaseModel, Field
 
 from ..db import get_db
 from ..models import (
@@ -54,7 +54,7 @@ def _render(request: Request, template_name: str, context: dict) -> HTMLResponse
 
 
 class DeleteUsersPayload(BaseModel):
-    user_ids: conlist(int, min_items=1)
+    user_ids: list[int] = Field(..., min_length=1)
 
 
 def _require_admin(request: Request, db: Session) -> tuple[dict, User]:
