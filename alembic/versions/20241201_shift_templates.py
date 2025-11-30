@@ -14,7 +14,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = "20241201_shift_templates"
-down_revision: Union[str, None] = "20241128_120000"
+down_revision: Union[str, None] = "20241130_130000"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -78,4 +78,3 @@ def downgrade() -> None:
     op.drop_column("shift_templates", "timezone")
     op.drop_column("shift_templates", "name")
     op.rename_table("shift_templates", "shifts")
-*** End of File***
