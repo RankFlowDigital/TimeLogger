@@ -1018,7 +1018,6 @@ function renderRoomAdmin(payload) {
         input.checked = room.settings?.[key] !== false;
       });
     }
-    renameForm.hidden = room.is_system;
   }
   if (addMemberForm) {
     addMemberForm.dataset.roomId = room.id;
