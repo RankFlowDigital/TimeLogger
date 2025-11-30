@@ -1,7 +1,7 @@
 from functools import lru_cache
 
 from pydantic import Field
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -20,9 +20,7 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = Field(default=True, alias="MAIL_SMTP_TLS")
     smtp_use_ssl: bool = Field(default=False, alias="MAIL_SMTP_SSL")
 
-    class Config:
-        env_file = ".env"
-        case_sensitive = False
+    model_config = SettingsConfigDict(env_file=".env", case_sensitive=False)
 
 
 @lru_cache

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, constr
+from pydantic import BaseModel, EmailStr, ConfigDict, constr
 
 
 class UserBase(BaseModel):
@@ -9,8 +9,7 @@ class UserBase(BaseModel):
     full_name: str
     role: str
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserDetail(UserBase):

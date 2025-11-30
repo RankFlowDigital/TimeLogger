@@ -30,6 +30,8 @@ message_type_enum = sa.Enum(
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    message_type_enum.create(bind, checkfirst=True)
     op.add_column(
         "messages",
         sa.Column("message_type", message_type_enum, nullable=False, server_default="CHAT"),
@@ -58,4 +60,4 @@ def downgrade() -> None:
     op.drop_table("chat_room_reads")
     op.drop_column("messages", "metadata")
     op.drop_column("messages", "message_type")
-    message_type_enum.drop(op.get_bind(), checkfirst=False)
+    message_type_enum.drop(op.get_bind(), checkfirst=True)
