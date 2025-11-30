@@ -839,11 +839,22 @@ function initChatManager() {
   if (!chatState.manageOverlay) return;
   const trigger = document.querySelector("[data-chat-manage-trigger]");
   const close = document.querySelector("[data-chat-manage-close]");
+  const deleteButton = document.querySelector("[data-chat-delete-room]");
   if (trigger) {
     trigger.addEventListener("click", () => toggleChatManager(true));
   }
   if (close) {
     close.addEventListener("click", () => toggleChatManager(false));
+  }
+  if (deleteButton) {
+    deleteButton.addEventListener("click", () => {
+      const roomId = Number(deleteButton.dataset.roomId);
+      if (!roomId) return;
+      const roomName = deleteButton.dataset.roomName || "this group";
+      const confirmed = window.confirm(`Delete ${roomName}? This cannot be undone.`);
+      if (!confirmed) return;
+      deleteRoom(roomId);
+    });
   }
   const overlay = chatState.manageOverlay;
   overlay.addEventListener("click", (event) => {
@@ -993,6 +1004,7 @@ function renderRoomAdmin(payload) {
   const renameForm = document.querySelector("[data-chat-rename-form]");
   const addMemberForm = document.querySelector("[data-chat-add-member-form]");
   const memberList = document.querySelector("[data-chat-member-list]");
+  const deleteButton = document.querySelector("[data-chat-delete-room]");
   if (renameForm) {
     const nameInput = renameForm.querySelector("input[name='name']");
     if (nameInput && room) {
@@ -1041,6 +1053,13 @@ function renderRoomAdmin(payload) {
       }
       memberList.appendChild(row);
     });
+  }
+  if (deleteButton) {
+    const allowDelete = room && !room.is_system;
+    deleteButton.hidden = !allowDelete;
+    deleteButton.disabled = !allowDelete;
+    deleteButton.dataset.roomId = allowDelete ? room.id : "";
+    deleteButton.dataset.roomName = allowDelete ? room.name : "";
   }
 }
 
@@ -1119,6 +1138,26 @@ async function removeMember(roomId, memberId) {
     await loadRoomDetails(roomId);
   } catch (err) {
     setFeedback(feedback, err.message || "Unable to remove member", true);
+  }
+}
+
+async function deleteRoom(roomId) {
+  const feedback = document.querySelector("[data-chat-room-feedback]");
+  try {
+    const res = await fetch(`/api/chat/rooms/${roomId}`, {
+      method: "DELETE",
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail || "Unable to delete room");
+    }
+    setFeedback(feedback, "Room deleted");
+    await loadRooms({ includeUsers: chatState.isAdmin });
+    if (chatState.manageOverlay?.hidden === false) {
+      populateRoomSelect();
+    }
+  } catch (err) {
+    setFeedback(feedback, err.message || "Unable to delete room", true);
   }
 }
 
