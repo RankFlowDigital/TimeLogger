@@ -20,8 +20,6 @@ const chatState = {
   roomNameEl: null,
   roomMetaEl: null,
   roomPresenceEl: null,
-  roomActionButtons: [],
-  refreshButton: null,
   manageOverlay: null,
   messageWindowEl: null,
   scrollLatestButton: null,
@@ -355,7 +353,6 @@ function initChatRooms() {
   chatState.roomMetaEl = document.querySelector("[data-chat-room-meta]");
   chatState.roomPresenceEl = document.querySelector("[data-chat-room-presence]");
   chatState.roomActionButtons = Array.from(document.querySelectorAll("[data-chat-room-action]"));
-  chatState.refreshButton = document.querySelector("[data-chat-refresh]");
   chatState.manageOverlay = document.querySelector("[data-chat-manager]");
   const dock = document.getElementById("chat-dock");
   if (dock?.dataset?.userRole) {
@@ -374,9 +371,6 @@ function initChatRooms() {
     chatState.threadFilterEls.forEach((button) => {
       button.addEventListener("click", () => setThreadFilter(button.dataset.chatThreadFilter));
     });
-  }
-  if (chatState.refreshButton) {
-    chatState.refreshButton.addEventListener("click", () => loadRooms({ includeUsers: chatState.isAdmin }));
   }
   document.addEventListener("click", handleGlobalClick, true);
   if (!chatState.threadListEl) return;

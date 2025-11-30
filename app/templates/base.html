@@ -35,20 +35,13 @@
         <div class="chat-dock-handle" data-chat-dock-resizer aria-hidden="true"></div>
         <div class="chat-shell" data-chat-shell>
             <section class="chat-sidebar" data-chat-sidebar>
+                {% if user.role in ["OWNER", "ADMIN"] %}
                 <div class="chat-sidebar__header">
-                    <div class="chat-sidebar__title">
-                        <p class="muted">Chats</p>
-                        <strong>Messenger Inbox</strong>
-                    </div>
-                    <div class="chat-sidebar__controls">
-                        <button type="button" class="chat-icon-button" data-chat-refresh title="Refresh conversations">⟳</button>
-                        {% if user.role in ["OWNER", "ADMIN"] %}
-                        <button type="button" class="chat-pill-button" data-chat-manage-trigger>
-                            <span>New group</span>
-                        </button>
-                        {% endif %}
-                    </div>
+                    <button type="button" class="chat-pill-button" data-chat-manage-trigger>
+                        <span>New group</span>
+                    </button>
                 </div>
+                {% endif %}
                 <label class="chat-search">
                     <span class="chat-search__icon">🔍</span>
                     <input type="search" placeholder="Search chats" data-chat-thread-search autocomplete="off">
@@ -80,11 +73,7 @@
                     </div>
                 </div>
                 <header class="chat-conversation__header">
-                    <div class="chat-room-heading">
-                        <h3 data-chat-room-name>Fundamental Ecom LLC</h3>
-                        <p data-chat-room-meta>Active now • Broadcast to members</p>
-                        <div class="chat-room-presence" data-chat-room-presence></div>
-                    </div>
+                    <div class="chat-room-presence" data-chat-room-presence></div>
                     <div class="chat-conversation__actions">
                         <button type="button" class="chat-icon-button" data-chat-room-action="delete" title="Delete group">🗑</button>
                         <button type="button" class="chat-icon-button" data-chat-room-action="more" title="More actions">⋯</button>
