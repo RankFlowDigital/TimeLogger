@@ -108,8 +108,19 @@ async def login(
     db: Session = Depends(get_db),
 ):
     try:
-        user = db.query(User).filter(User.email == email.lower()).one_or_none()
-        if not user or not verify_password(password, user.password_hash):
+        normalized_email = email.lower()
+        user = db.query(User).filter(User.email == normalized_email).one_or_none()
+        if not user:
+            logger.warning("Login failed: user not found", extra={"email": normalized_email})
+            return _render(
+                request,
+                "auth/login.html",
+                {"request": request, "error": "Invalid credentials"},
+                status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not verify_password(password, user.password_hash):
+            logger.warning("Login failed: bad password", extra={"email": normalized_email, "user_id": user.id})
             return _render(
                 request,
                 "auth/login.html",
@@ -138,6 +149,7 @@ async def login(
             user.joined_at = datetime.utcnow()
             db.commit()
 
+        logger.info("Login succeeded", extra={"user_id": user.id, "email": normalized_email})
         request.session["user"] = _session_payload(user)
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
     except Exception:
