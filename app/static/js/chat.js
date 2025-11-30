@@ -314,6 +314,10 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+function initLegacyInterfaces() {
+  // Placeholder to maintain compatibility with legacy markup; no-op by default.
+}
+
 function initChatConversationUI() {
   chatState.messageWindowEl = document.querySelector("[data-chat-messages='room']");
   chatState.scrollLatestButton = document.querySelector("[data-chat-scroll-latest]");
