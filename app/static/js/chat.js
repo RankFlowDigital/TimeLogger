@@ -20,9 +20,6 @@ const chatState = {
   roomNameEl: null,
   roomMetaEl: null,
   roomPresenceEl: null,
-  pinnedContainer: null,
-  pinnedTitleEl: null,
-  pinnedMetaEl: null,
   roomActionButtons: [],
   refreshButton: null,
   manageOverlay: null,
@@ -162,14 +159,11 @@ function renderMessages(container, roomId) {
     empty.className = "empty-state";
     empty.textContent = "No messages yet. Start the conversation.";
     container.appendChild(empty);
-    applyPinnedBanner(null);
     if (chatState.scrollLatestButton) {
       chatState.scrollLatestButton.hidden = true;
     }
     return;
   }
-
-  applyPinnedBanner(findPinnedMessage(buffer));
 
   const fragment = document.createDocumentFragment();
   buffer.forEach((msg) => {
@@ -236,36 +230,6 @@ function renderMessages(container, roomId) {
   }
 }
 
-function applyPinnedBanner(message) {
-  if (!chatState.pinnedContainer) return;
-  if (!message) {
-    chatState.pinnedContainer.hidden = true;
-    chatState.pinnedTitleEl && (chatState.pinnedTitleEl.textContent = "");
-    chatState.pinnedMetaEl && (chatState.pinnedMetaEl.textContent = "");
-    return;
-  }
-  const title = message.metadata?.title || message.metadata?.headline || message.content || "System update";
-  const metaText =
-    message.metadata?.summary || message.metadata?.note || formatTimestamp(message.created_at) || "Updated";
-  if (chatState.pinnedTitleEl) {
-    chatState.pinnedTitleEl.textContent = title;
-  }
-  if (chatState.pinnedMetaEl) {
-    chatState.pinnedMetaEl.textContent = metaText;
-  }
-  chatState.pinnedContainer.hidden = false;
-}
-
-function findPinnedMessage(messages) {
-  if (!Array.isArray(messages) || !messages.length) return null;
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const msg = messages[i];
-    if (msg?.metadata?.pinned || SYSTEM_MESSAGE_TYPES.has((msg.message_type || "").toUpperCase())) {
-      return msg;
-    }
-  }
-  return null;
-}
 
 function formatMessageBody(content, mentions = []) {
   let output = escapeHtml(content || "");
@@ -362,9 +326,6 @@ function initChatConversationUI() {
   chatState.mentionPopover = document.querySelector("[data-mention-popover]");
   chatState.mentionOptionsEl = document.querySelector("[data-mention-options]");
 
-  const pinnedDismiss = document.querySelector("[data-chat-pinned-dismiss]");
-  pinnedDismiss?.addEventListener("click", hidePinnedBanner);
-
   if (chatState.messageWindowEl) {
     chatState.messageWindowEl.addEventListener("scroll", handleMessageScroll, { passive: true });
   }
@@ -393,9 +354,6 @@ function initChatRooms() {
   chatState.roomNameEl = document.querySelector("[data-chat-room-name]");
   chatState.roomMetaEl = document.querySelector("[data-chat-room-meta]");
   chatState.roomPresenceEl = document.querySelector("[data-chat-room-presence]");
-  chatState.pinnedContainer = document.querySelector("[data-chat-pinned]");
-  chatState.pinnedTitleEl = document.querySelector("[data-chat-pinned-title]");
-  chatState.pinnedMetaEl = document.querySelector("[data-chat-pinned-meta]");
   chatState.roomActionButtons = Array.from(document.querySelectorAll("[data-chat-room-action]"));
   chatState.refreshButton = document.querySelector("[data-chat-refresh]");
   chatState.manageOverlay = document.querySelector("[data-chat-manager]");
@@ -717,12 +675,6 @@ function scrollToLatest(animate = false) {
   chatState.messageWindowEl.scrollTo({ top: chatState.messageWindowEl.scrollHeight, behavior });
   if (chatState.scrollLatestButton) {
     chatState.scrollLatestButton.hidden = true;
-  }
-}
-
-function hidePinnedBanner() {
-  if (chatState.pinnedContainer) {
-    chatState.pinnedContainer.hidden = true;
   }
 }
 

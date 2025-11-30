@@ -66,30 +66,7 @@
                 </div>
             </section>
             <section class="chat-conversation" data-chat-conversation>
-                <header class="chat-conversation__header">
-                    <div class="chat-room-heading">
-                        <h3 data-chat-room-name>Fundamental Ecom LLC</h3>
-                        <p data-chat-room-meta>Active now • Broadcast to members</p>
-                        <div class="chat-room-presence" data-chat-room-presence></div>
-                    </div>
-                    <div class="chat-conversation__actions">
-                        <button type="button" class="chat-icon-button" data-chat-room-action="add" title="Add member">➕</button>
-                        <button type="button" class="chat-icon-button" data-chat-room-action="remove" title="Remove member">➖</button>
-                        <button type="button" class="chat-icon-button" data-chat-room-action="delete" title="Delete group">🗑</button>
-                        <button type="button" class="chat-icon-button" data-chat-room-action="more" title="More actions">⋯</button>
-                    </div>
-                </header>
-                <div class="chat-pinned" data-chat-pinned hidden>
-                    <div>
-                        <p class="chat-pinned__label">Pinned system update</p>
-                        <strong class="chat-pinned__title" data-chat-pinned-title></strong>
-                        <p class="chat-pinned__meta" data-chat-pinned-meta></p>
-                    </div>
-                    <button type="button" class="chat-icon-button" data-chat-pinned-dismiss title="Collapse">
-                        ×
-                    </button>
-                </div>
-                <div class="chat-thread-window" data-chat-thread-window>
+                <div class="chat-conversation__alerts">
                     <div class="rollcall-banner" id="rollcall-panel" hidden>
                         <div>
                             <p class="rollcall-label">Roll call in progress</p>
@@ -101,6 +78,19 @@
                             <p class="muted" data-rollcall-note></p>
                         </div>
                     </div>
+                </div>
+                <header class="chat-conversation__header">
+                    <div class="chat-room-heading">
+                        <h3 data-chat-room-name>Fundamental Ecom LLC</h3>
+                        <p data-chat-room-meta>Active now • Broadcast to members</p>
+                        <div class="chat-room-presence" data-chat-room-presence></div>
+                    </div>
+                    <div class="chat-conversation__actions">
+                        <button type="button" class="chat-icon-button" data-chat-room-action="delete" title="Delete group">🗑</button>
+                        <button type="button" class="chat-icon-button" data-chat-room-action="more" title="More actions">⋯</button>
+                    </div>
+                </header>
+                <div class="chat-thread-window" data-chat-thread-window>
                     <div class="chat-messages" data-chat-messages="room"></div>
                     <button type="button" class="chat-scroll-latest" data-chat-scroll-latest hidden>
                         Jump to latest
