@@ -7,16 +7,11 @@ from sqlalchemy import and_, extract
 from sqlalchemy.orm import Session
 
 from ..models import Deduction, WorkSession
+from . import shifts as shift_service
 from ..schemas.session import SessionSummary
 
 ALLOWED_LUNCH_MINUTES = 60
 ALLOWED_SHORT_BREAK_MINUTES = 30
-
-
-def _minutes_between(start: datetime, end: datetime | None) -> int:
-    effective_end = end or datetime.utcnow()
-    delta = effective_end - start
-    return max(0, int(delta.total_seconds() // 60))
 
 
 def build_summary_for_day(db: Session, user_id: int, target_date: date) -> SessionSummary:
@@ -30,12 +25,15 @@ def build_summary_for_day(db: Session, user_id: int, target_date: date) -> Sessi
         )
         .all()
     )
+    shift_windows = shift_service.get_shift_windows_for_day(db, user_id, target_date)
     summary = SessionSummary()
     session_ids = []
     org_id = sessions[0].org_id if sessions else None
     for session in sessions:
         session_ids.append(session.id)
-        minutes = _minutes_between(session.started_at, session.ended_at)
+        minutes = _minutes_in_windows(session.started_at, session.ended_at, shift_windows)
+        if minutes <= 0:
+            continue
         if session.session_type == "WORK":
             summary.work_minutes += minutes
         elif session.session_type == "LUNCH":
@@ -113,3 +111,17 @@ def create_rollcall_deduction(db: Session, *, org_id: int, user_id: int, occurre
     )
     db.add(deduction)
     db.commit()
+
+
+def _minutes_in_windows(start: datetime, end: datetime | None, windows: list[shift_service.ShiftWindow]) -> int:
+    if not windows:
+        return 0
+    effective_end = end or datetime.utcnow()
+    total = 0
+    for window in windows:
+        overlap_start = max(start, window.start_utc)
+        overlap_end = min(effective_end, window.end_utc)
+        if overlap_end <= overlap_start:
+            continue
+        total += max(0, int((overlap_end - overlap_start).total_seconds() // 60))
+    return total

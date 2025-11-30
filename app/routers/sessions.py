@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import WorkSession
 from ..schemas.session import SessionStart
+from ..services import shifts as shift_service
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 templates = Path(__file__).resolve().parents[1] / "templates"
@@ -18,6 +19,13 @@ def _require_user(request: Request) -> dict:
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
     return user
+
+
+def _require_active_shift(db: Session, user_id: int) -> shift_service.ShiftWindow:
+    window = shift_service.get_active_shift_window(db, user_id)
+    if not window:
+        raise HTTPException(status_code=400, detail="No active shift scheduled right now.")
+    return window
 
 
 def _close_open_session(db: Session, user_id: int, session_type: str | None = None):
@@ -79,6 +87,7 @@ async def start_work(
     db: Session = Depends(get_db),
 ):
     user = _require_user(request)
+    _require_active_shift(db, user["id"])
     _close_open_session(db, user["id"])
     session = _start_session(db, user, "WORK", payload.task_description if payload else None)
     return JSONResponse({"status": "started", "session_id": session.id})
@@ -106,6 +115,7 @@ async def stop_work(request: Request, db: Session = Depends(get_db)):
 @router.post("/start-lunch")
 async def start_lunch(request: Request, db: Session = Depends(get_db)):
     user = _require_user(request)
+    _require_active_shift(db, user["id"])
     open_work = (
         db.query(WorkSession)
         .filter(
@@ -145,6 +155,7 @@ async def end_lunch(request: Request, db: Session = Depends(get_db)):
 @router.post("/start-break")
 async def start_break(request: Request, db: Session = Depends(get_db)):
     user = _require_user(request)
+    _require_active_shift(db, user["id"])
     open_work = (
         db.query(WorkSession)
         .filter(

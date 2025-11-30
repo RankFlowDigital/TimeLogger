@@ -502,11 +502,136 @@ function startDashboardAutoRefresh() {
   }, 15000);
 }
 
+function initAdminUsersPage() {
+  const root = document.querySelector("[data-admin-users-page]");
+  if (!root) return;
+  const feedback = root.querySelector("[data-admin-users-feedback]");
+  const selectAll = root.querySelector("[data-admin-user-select-all]");
+  const bulkButton = root.querySelector("[data-admin-delete-selected]");
+
+  const setFeedback = (message, variant = "") => {
+    if (!feedback) return;
+    feedback.textContent = message || "";
+    feedback.dataset.variant = variant;
+  };
+
+  const selectableCheckboxes = () =>
+    Array.from(root.querySelectorAll("[data-admin-user-checkbox]:not(:disabled)"));
+
+  const getSelectedIds = () =>
+    selectableCheckboxes()
+      .filter((cb) => cb.checked)
+      .map((cb) => Number(cb.value))
+      .filter((value) => Number.isFinite(value));
+
+  const updateBulkState = () => {
+    const checkboxes = selectableCheckboxes();
+    const selectedIds = getSelectedIds();
+    if (bulkButton) {
+      bulkButton.disabled = selectedIds.length === 0;
+    }
+    if (selectAll) {
+      const total = checkboxes.length;
+      selectAll.indeterminate = selectedIds.length > 0 && selectedIds.length < total;
+      selectAll.checked = total > 0 && selectedIds.length === total;
+    }
+    return selectedIds;
+  };
+
+  const clearSelection = () => {
+    selectableCheckboxes().forEach((cb) => {
+      cb.checked = false;
+    });
+    if (selectAll) {
+      selectAll.checked = false;
+      selectAll.indeterminate = false;
+    }
+  };
+
+  const removeRows = (ids) => {
+    if (!Array.isArray(ids)) return;
+    ids.forEach((id) => {
+      const row = root.querySelector(`[data-admin-user-row][data-user-id="${id}"]`);
+      if (row) {
+        row.remove();
+      }
+    });
+  };
+
+  const deleteUsers = async (userIds, label, triggerButton) => {
+    if (!Array.isArray(userIds) || userIds.length === 0) return;
+    const confirmationLabel = label || (userIds.length === 1 ? "this user" : `${userIds.length} users`);
+    const confirmed = window.confirm(`Remove ${confirmationLabel}? This cannot be undone.`);
+    if (!confirmed) return;
+    setFeedback("");
+    if (triggerButton) {
+      triggerButton.disabled = true;
+    }
+    try {
+      const res = await fetch("/admin/users/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_ids: userIds }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.detail || data?.message || "Unable to remove user(s)");
+      }
+      removeRows(Array.isArray(data?.removed) ? data.removed : userIds);
+      clearSelection();
+      updateBulkState();
+      setFeedback(data?.message || "User(s) removed.", "success");
+      window.dashboardRuntime?.refresh?.();
+    } catch (err) {
+      console.error(err);
+      setFeedback(err.message || "Unable to remove user(s)", "error");
+    } finally {
+      if (triggerButton && document.body.contains(triggerButton)) {
+        triggerButton.disabled = false;
+      }
+    }
+  };
+
+  selectAll?.addEventListener("change", (event) => {
+    const checked = Boolean(event.currentTarget?.checked);
+    selectableCheckboxes().forEach((cb) => {
+      cb.checked = checked;
+    });
+    updateBulkState();
+  });
+
+  root.addEventListener("change", (event) => {
+    const target = event.target;
+    if (target && typeof target.matches === "function" && target.matches("[data-admin-user-checkbox]")) {
+      updateBulkState();
+    }
+  });
+
+  root.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest("[data-admin-user-delete]");
+    if (!button) return;
+    const userId = Number(button.dataset.userId);
+    if (!userId || button.disabled) return;
+    const name = button.dataset.userName || "this user";
+    deleteUsers([userId], name, button);
+  });
+
+  bulkButton?.addEventListener("click", () => {
+    const ids = updateBulkState();
+    deleteUsers(ids, null, bulkButton);
+  });
+
+  updateBulkState();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   hydrateDashboard();
   startDashboardAutoRefresh();
   initProfilePage();
   initTimezoneControls();
+  initAdminUsersPage();
 });
 
 function startStatusTicker() {

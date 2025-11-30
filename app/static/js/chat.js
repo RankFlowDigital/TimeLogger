@@ -378,7 +378,7 @@ function initChatRooms() {
   }
   document.addEventListener("click", handleGlobalClick, true);
   if (!chatState.threadListEl) return;
-  loadRooms({ includeUsers: chatState.isAdmin });
+  loadRooms({ includeUsers: true });
   initChatManager();
 }
 
@@ -540,7 +540,7 @@ function handleThreadSearchInput(event) {
     clearTimeout(chatState.threadSearchTimer);
   }
   chatState.threadSearchTimer = setTimeout(() => {
-    loadRooms({ includeUsers: chatState.isAdmin });
+    loadRooms({ includeUsers: true });
   }, 250);
 }
 
@@ -979,7 +979,7 @@ async function handleCreateRoom(event) {
     }
     form.reset();
     setFeedback(feedback, "Group chat created");
-    await loadRooms({ includeUsers: chatState.isAdmin });
+    await loadRooms({ includeUsers: true });
   } catch (err) {
     setFeedback(feedback, err.message || "Unable to create chat", true);
   }
@@ -1088,7 +1088,7 @@ async function handleRoomSettingsUpdate(event) {
       throw new Error(data.detail || "Unable to update room");
     }
     setFeedback(feedback, "Room updated");
-    await loadRooms({ includeUsers: chatState.isAdmin });
+    await loadRooms({ includeUsers: true });
     await loadRoomDetails(roomId);
   } catch (err) {
     setFeedback(feedback, err.message || "Unable to update room", true);
@@ -1115,7 +1115,7 @@ async function handleAddMember(event) {
       throw new Error(data.detail || "Unable to add member");
     }
     setFeedback(feedback, "Member added");
-    await loadRooms({ includeUsers: chatState.isAdmin });
+    await loadRooms({ includeUsers: true });
     await loadRoomDetails(roomId);
   } catch (err) {
     setFeedback(feedback, err.message || "Unable to add member", true);
@@ -1133,7 +1133,7 @@ async function removeMember(roomId, memberId) {
       throw new Error(data.detail || "Unable to remove member");
     }
     setFeedback(feedback, "Member removed");
-    await loadRooms({ includeUsers: chatState.isAdmin });
+    await loadRooms({ includeUsers: true });
     await loadRoomDetails(roomId);
   } catch (err) {
     setFeedback(feedback, err.message || "Unable to remove member", true);
@@ -1151,7 +1151,7 @@ async function deleteRoom(roomId) {
       throw new Error(data.detail || "Unable to delete room");
     }
     setFeedback(feedback, "Room deleted");
-    await loadRooms({ includeUsers: chatState.isAdmin });
+    await loadRooms({ includeUsers: true });
     if (chatState.manageOverlay?.hidden === false) {
       populateRoomSelect();
     }

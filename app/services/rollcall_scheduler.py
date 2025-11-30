@@ -7,6 +7,7 @@ from sqlalchemy import and_, extract
 from sqlalchemy.orm import Session
 
 from ..models import Leave, RollCall, User, WorkSession
+from . import shifts as shift_service
 
 RESPONSE_WINDOW_MINUTES = 5
 MIN_GAP_MINUTES = 5
@@ -153,4 +154,9 @@ def _get_active_users(db: Session, org_id: int, now: datetime) -> list[User]:
         )
         .all()
     )
-    return users
+    active = []
+    for user in users:
+        window = shift_service.get_shift_window_for_timestamp(db, user.id, now)
+        if window:
+            active.append(user)
+    return active

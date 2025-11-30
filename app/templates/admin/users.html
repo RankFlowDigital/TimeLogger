@@ -34,22 +34,52 @@
         <p class="form-feedback" data-invite-feedback></p>
     </form>
 </section>
-<section class="panel">
-    <h2>Team Status</h2>
-    <table>
+<section class="panel" data-admin-users-page>
+    <div class="panel-heading">
+        <h2>Team Status</h2>
+        <div class="panel-actions">
+            <button type="button" class="danger" data-admin-delete-selected disabled>Remove selected</button>
+        </div>
+    </div>
+    <p class="muted">Select teammates to remove them individually or in bulk. Owners and your own account cannot be removed.</p>
+    <p class="form-feedback" data-admin-users-feedback></p>
+    <table data-admin-users-table>
         <thead>
             <tr>
+                <th>
+                    <label class="sr-only" for="admin-user-select-all">Select all users</label>
+                    <input type="checkbox" id="admin-user-select-all" data-admin-user-select-all>
+                </th>
                 <th>Name</th>
                 <th>Status</th>
                 <th>Since</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for item in statuses %}
-            <tr>
-                <td>{{ item.user.full_name }}</td>
+            {% set is_self = item.user.id == user.id %}
+            {% set is_owner = item.user.role == "OWNER" %}
+            {% set removable = (not is_self and not is_owner) %}
+            <tr data-admin-user-row data-user-id="{{ item.user.id }}" data-user-removable="{{ 'true' if removable else 'false' }}">
+                <td>
+                    <label class="sr-only" for="admin-user-select-{{ item.user.id }}">Select {{ item.user.full_name }}</label>
+                    <input type="checkbox" id="admin-user-select-{{ item.user.id }}" data-admin-user-checkbox value="{{ item.user.id }}" {% if not removable %}disabled{% endif %}>
+                </td>
+                <td>
+                    <strong>{{ item.user.full_name }}</strong>
+                    <div class="muted small-text">{{ item.user.email }} · {{ item.user.role.title() }}</div>
+                </td>
                 <td>{{ item.status }}</td>
                 <td>{{ item.since or '-' }}</td>
+                <td>
+                    <button type="button" class="danger" data-admin-user-delete data-user-id="{{ item.user.id }}" data-user-name="{{ item.user.full_name }}" {% if not removable %}disabled{% endif %}>Remove</button>
+                    {% if is_self %}
+                    <span class="tag">You</span>
+                    {% elif is_owner %}
+                    <span class="tag">Owner</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>

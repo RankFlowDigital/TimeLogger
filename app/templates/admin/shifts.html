@@ -1,52 +1,76 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="panel">
-    <h2>Manage Shifts</h2>
-    <form method="post" action="/admin/shifts" class="form-grid">
-        <label>User
-            <select name="user_id" required>
-                {% for member in members %}
-                <option value="{{ member.id }}">{{ member.full_name }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Day of Week
-            <select name="day_of_week" required>
-                {% for idx, label in [(0,'Monday'),(1,'Tuesday'),(2,'Wednesday'),(3,'Thursday'),(4,'Friday'),(5,'Saturday'),(6,'Sunday')] %}
-                <option value="{{ idx }}">{{ label }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <label>Start Time<input type="time" name="start_time" required></label>
-        <label>End Time<input type="time" name="end_time" required></label>
-        <button type="submit">Add Shift</button>
-    </form>
+{% if shift_error %}
+<div class="alert error">{{ shift_error }}</div>
+{% endif %}
+{% if shift_success %}
+<div class="alert success">{{ shift_success }}</div>
+{% endif %}
 
-    <table>
-        <thead>
-            <tr>
-                <th>User</th>
-                <th>Day</th>
-                <th>Start</th>
-                <th>End</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for shift in shifts %}
-            <tr>
-                <td>{{ member_lookup[shift.user_id].full_name if shift.user_id in member_lookup else shift.user_id }}</td>
-                <td>{{ ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][shift.day_of_week] }}</td>
-                <td>{{ shift.start_time.strftime('%H:%M') }}</td>
-                <td>{{ shift.end_time.strftime('%H:%M') }}</td>
-                <td>
-                    <form method="post" action="/admin/shifts/{{ shift.id }}/delete">
-                        <button type="submit">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<section class="panel">
+    <h2>Create shift template</h2>
+    <p class="muted">Each shift covers {{ (shift_work_minutes / 60)|round(1) }} hours of work, {{ shift_break_minutes }} minutes of paid short breaks, and {{ shift_lunch_minutes // 60 }} hour of unpaid lunch.</p>
+    <form method="post" action="/admin/shifts" class="form-grid">
+        <label>Day of week
+            <select name="day_of_week" required>
+                {% for label in day_labels %}
+                <option value="{{ loop.index0 }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Start time
+            <input type="time" name="start_time" required>
+        </label>
+        <label>End time
+            <input type="time" name="end_time" required>
+        </label>
+        <label>Assign teammates
+            <select name="user_ids" multiple size="6" required>
+                {% for member in members %}
+                <option value="{{ member.id }}">{{ member.full_name }} ({{ member.role.title() }})</option>
+                {% endfor %}
+            </select>
+            <span class="muted">Hold Ctrl (Cmd on Mac) to select multiple teammates.</span>
+        </label>
+        <button type="submit">Create shift</button>
+    </form>
+</section>
+
+<section class="panel">
+    <h2>Scheduled shifts</h2>
+    {% if not shifts %}
+    <p class="muted">No shifts have been scheduled yet.</p>
+    {% else %}
+    <div class="shift-grid">
+        {% for shift in shifts %}
+        <article class="shift-card">
+            <header>
+                <div>
+                    <strong>{{ day_labels[shift.day_of_week] }}</strong>
+                    <p class="muted">{{ shift.start_time.strftime('%H:%M') }} – {{ shift.end_time.strftime('%H:%M') }} ({{ shift.timezone or default_timezone }})</p>
+                </div>
+                <form method="post" action="/admin/shifts/{{ shift.id }}/delete">
+                    <button type="submit" class="danger" onclick="return confirm('Delete this shift template? Assignments will be removed.');">Delete</button>
+                </form>
+            </header>
+            <div class="shift-card__body">
+                <p class="muted">{{ shift.assignments|length }} teammate{{ '' if shift.assignments|length == 1 else 's' }} assigned.</p>
+                <ul class="assignment-list">
+                    {% for assignment in shift.assignments %}
+                    <li>
+                        <span>{{ assignment.user.full_name if assignment.user else 'Unknown user' }}</span>
+                        <form method="post" action="/admin/shifts/assignments/{{ assignment.id }}/delete">
+                            <button type="submit" class="secondary" onclick="return confirm('Remove {{ assignment.user.full_name if assignment.user else 'this user' }} from this shift?');">Remove</button>
+                        </form>
+                    </li>
+                    {% else %}
+                    <li class="muted">No teammates assigned.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% endif %}
 </section>
 {% endblock %}

@@ -9,7 +9,7 @@ from ..config import get_settings
 from ..db import get_db
 from ..models import Organization, RollCall, WorkSession
 from ..schemas.roll_call import RollCallResponse
-from ..services import rollcall_scheduler
+from ..services import rollcall_scheduler, shifts as shift_service
 from ..services.attendance import create_rollcall_deduction
 
 router = APIRouter(prefix="/api", tags=["roll_calls"])
@@ -74,28 +74,18 @@ async def respond_roll_call(
 
     if delay_seconds <= 300:
         roll_call.result = "PASSED"
-    elif now <= roll_call.deadline_at:
-        roll_call.result = "LATE"
-        roll_call.response_delay_seconds = delay_seconds - 300
-        create_rollcall_deduction(
-            db,
-            org_id=roll_call.org_id,
-            user_id=user["id"],
-            occurred_at=roll_call.triggered_at,
-            delay_seconds=delay_seconds - 300,
-            roll_call_id=roll_call.id,
-        )
     else:
         roll_call.result = "LATE"
         roll_call.response_delay_seconds = delay_seconds - 300
-        create_rollcall_deduction(
-            db,
-            org_id=roll_call.org_id,
-            user_id=user["id"],
-            occurred_at=roll_call.triggered_at,
-            delay_seconds=delay_seconds - 300,
-            roll_call_id=roll_call.id,
-        )
+        if shift_service.get_shift_window_for_timestamp(db, user["id"], roll_call.triggered_at):
+            create_rollcall_deduction(
+                db,
+                org_id=roll_call.org_id,
+                user_id=user["id"],
+                occurred_at=roll_call.triggered_at,
+                delay_seconds=delay_seconds - 300,
+                roll_call_id=roll_call.id,
+            )
     db.commit()
     return JSONResponse({"status": roll_call.result})
 

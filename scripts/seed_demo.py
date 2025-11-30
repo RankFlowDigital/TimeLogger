@@ -1,9 +1,9 @@
 """Seed a small demo org plus users/shifts into the configured database."""
 
-from datetime import time
+from datetime import date, time
 
 from app.db import SessionLocal
-from app.models import Organization, Shift, User
+from app.models import Organization, ShiftAssignment, ShiftTemplate, User
 from app.routers.auth import get_password_hash
 
 OWNER_EMAIL = "owner@example.com"
@@ -40,29 +40,49 @@ def ensure_user(session, org: Organization, email: str, full_name: str, role: st
     return user
 
 
-def ensure_shift(session, org_id: int, user_id: int, day_of_week: int, start: time, end: time) -> None:
-    exists = (
-        session.query(Shift)
+def ensure_shift(session, org: Organization, users: list[User], day_of_week: int, start: time, end: time) -> None:
+    template = (
+        session.query(ShiftTemplate)
         .filter(
-            Shift.org_id == org_id,
-            Shift.user_id == user_id,
-            Shift.day_of_week == day_of_week,
-            Shift.start_time == start,
-            Shift.end_time == end,
+            ShiftTemplate.org_id == org.id,
+            ShiftTemplate.day_of_week == day_of_week,
+            ShiftTemplate.start_time == start,
+            ShiftTemplate.end_time == end,
         )
         .one_or_none()
     )
-    if exists:
-        return
-    session.add(
-        Shift(
-            org_id=org_id,
-            user_id=user_id,
+    if template is None:
+        template = ShiftTemplate(
+            org_id=org.id,
+            name=f"Demo {start.strftime('%H:%M')}",
             day_of_week=day_of_week,
             start_time=start,
             end_time=end,
+            timezone=org.timezone,
         )
-    )
+        session.add(template)
+        session.flush()
+
+    today = date.today()
+    for user in users:
+        existing = (
+            session.query(ShiftAssignment)
+            .filter(
+                ShiftAssignment.shift_id == template.id,
+                ShiftAssignment.user_id == user.id,
+                ShiftAssignment.effective_to.is_(None),
+            )
+            .one_or_none()
+        )
+        if existing:
+            continue
+        session.add(
+            ShiftAssignment(
+                shift_id=template.id,
+                user_id=user.id,
+                effective_from=today,
+            )
+        )
 
 
 def main() -> None:
@@ -71,8 +91,7 @@ def main() -> None:
         org = ensure_org(session)
         owner = ensure_user(session, org, OWNER_EMAIL, "Demo Owner", "OWNER")
         member = ensure_user(session, org, MEMBER_EMAIL, "Demo Agent", "MEMBER")
-        ensure_shift(session, org.id, owner.id, 0, time(9, 0), time(17, 0))
-        ensure_shift(session, org.id, member.id, 0, time(9, 0), time(17, 0))
+        ensure_shift(session, org, [owner, member], 0, time(9, 0), time(18, 0))
         session.commit()
         print("Demo data ready:")
         print(f"  Owner login: {OWNER_EMAIL} / {DEFAULT_PASSWORD}")

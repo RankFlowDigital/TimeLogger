@@ -36,6 +36,14 @@ alembic revision --autogenerate -m "init"
 alembic upgrade head
 ```
 
+## Deployment Workflow
+
+- **Vercel (serverless Python)** – `api/index.py` applies `alembic upgrade head` exactly once on every cold start before importing the ASGI app, so freshly deployed environments always pick up migrations automatically.
+- **Docker / container builds** – run the app with `python scripts/runserver.py`. When `RUN_DB_MIGRATIONS=1` is present, it applies Alembic migrations before launching Uvicorn (or a custom command supplied via `RUNSERVER_CMD`).
+- **Neon branch hygiene** – always migrate the target branch before swapping a new `DATABASE_URL`. Avoid destructive operations such as `DROP SCHEMA` unless you plan to rerun the full migration chain immediately; otherwise, create a fresh branch, migrate there, then switch the connection string.
+- **Smoke tests** – add `python scripts/smoke_test.py` to CI/CD before each deploy. The script checks the Alembic revision with `alembic current` and runs a sanity query against `organizations` to ensure the database is reachable.
+- **Purging demo accounts** – run `python scripts/remove_demo_accounts.py` (add `--force` to skip the confirmation prompt) to delete the seeded "Demo Org" users/emails without touching real data.
+
 In this repo the initial migration (`alembic/versions/20241128_120000_init.py`) is already authored because the remote Postgres instance was not accessible from this environment. Re-run the commands above on your machine to ensure the schema actually exists.
 
 ## Scheduled Roll Calls
@@ -55,7 +63,14 @@ Two internal endpoints need to be pinged on a schedule:
 - Settings are stored per organization, so different teams can use different intensities without redeploying the app.
 
 ## Roll-Call Audio
-Place a `rollcall.mp3` file inside `app/static/sounds/`. The frontend references `/static/sounds/rollcall.mp3` when a roll call modal opens. Any short attention-grabbing clip works; keep it lightweight (<200 KB) to avoid slow loads.
+Place a `rollcall.mp3` file inside `app/static/sounds/`. The frontend references `/static/sounds/rollcall.mp3` when a roll call modal opens, and the clip only plays for the teammate who actually received the prompt. Any short attention-grabbing clip works; keep it lightweight (<200 KB) to avoid slow loads.
+
+## Shift Scheduling & Attendance Rules
+- Admins can create reusable shift templates from **Admin → Shifts** by picking a weekday, start/end time (must span exactly 9 hours), and one or more teammates. Behind the scenes each template enforces 7.5 hours of work, 30 minutes of paid short breaks, and 1 hour of unpaid lunch.
+- A teammate can only hold one active shift per weekday. Removing a teammate from a template immediately frees that slot without deleting the template.
+- Users can only start work/lunch/break sessions while an assigned shift is active. Time tracked outside the scheduled window is ignored in history/summary calculations.
+- Overbreak deductions, late roll-call penalties, and roll-call prompts only apply if the event occurs inside the user’s scheduled shift.
+- The roll-call scheduler now filters to teammates who both have an open work session and an active shift window, so night crews and off-duty staff never hear alerts.
 
 ## Running Locally
 ```bash

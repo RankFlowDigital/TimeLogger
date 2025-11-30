@@ -156,7 +156,7 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
                 "role": member.role,
                 "timezone": display_timezone,
                 "status": live_session.session_type if live_session else "OFFLINE",
-                "since": live_session.started_at.isoformat() if live_session else None,
+                "since": _to_iso(live_session.started_at) if live_session else None,
             }
         )
 

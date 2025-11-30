@@ -1,18 +1,36 @@
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlencode
+from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Form, Request, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
+from pydantic import BaseModel, conlist
 
 from ..db import get_db
-from ..models import Leave, Organization, Shift, User, WorkSession
-from ..services import rollcall_scheduler
+from ..models import (
+    ChatRoom,
+    ChatRoomMember,
+    ChatRoomRead,
+    Deduction,
+    Leave,
+    Message,
+    Organization,
+    RollCall,
+    ShiftAssignment,
+    ShiftTemplate,
+    User,
+    WorkSession,
+)
+from ..services import rollcall_scheduler, shifts as shift_service
 from ..config import get_settings
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Path(__file__).resolve().parents[1] / "templates"
 settings = get_settings()
+DAY_LABELS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+SHORT_DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
 def _get_admin(request: Request, db: Session) -> tuple[dict | None, User | None]:
@@ -33,6 +51,102 @@ def _render(request: Request, template_name: str, context: dict) -> HTMLResponse
     ctx.setdefault("user", request.session.get("user"))
     ctx.setdefault("default_timezone", settings.default_timezone)
     return template.TemplateResponse(template_name, ctx)
+
+
+class DeleteUsersPayload(BaseModel):
+    user_ids: conlist(int, min_items=1)
+
+
+def _require_admin(request: Request, db: Session) -> tuple[dict, User]:
+    session_user, admin_user = _get_admin(request, db)
+    if not session_user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    if not admin_user:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return session_user, admin_user
+
+
+def _purge_user_dependencies(db: Session, org_id: int, user_ids: list[int]) -> None:
+    if not user_ids:
+        return
+    db.query(WorkSession).filter(WorkSession.org_id == org_id, WorkSession.user_id.in_(user_ids)).delete(synchronize_session=False)
+    assignments = (
+        db.query(ShiftAssignment)
+        .join(ShiftTemplate, ShiftAssignment.shift_id == ShiftTemplate.id)
+        .filter(ShiftTemplate.org_id == org_id, ShiftAssignment.user_id.in_(user_ids))
+        .all()
+    )
+    for assignment in assignments:
+        db.delete(assignment)
+    db.query(RollCall).filter(RollCall.org_id == org_id, RollCall.user_id.in_(user_ids)).delete(synchronize_session=False)
+    db.query(Leave).filter(Leave.org_id == org_id, Leave.user_id.in_(user_ids)).delete(synchronize_session=False)
+    db.query(Deduction).filter(Deduction.org_id == org_id, Deduction.user_id.in_(user_ids)).delete(synchronize_session=False)
+    db.query(Message).filter(Message.org_id == org_id, Message.user_id.in_(user_ids)).delete(synchronize_session=False)
+    db.query(ChatRoomMember).filter(ChatRoomMember.user_id.in_(user_ids)).delete(synchronize_session=False)
+    db.query(ChatRoomRead).filter(ChatRoomRead.user_id.in_(user_ids)).delete(synchronize_session=False)
+    db.query(ChatRoomMember).filter(ChatRoomMember.added_by.in_(user_ids)).update({ChatRoomMember.added_by: None}, synchronize_session=False)
+    db.query(ChatRoom).filter(ChatRoom.created_by.in_(user_ids)).update({ChatRoom.created_by: None}, synchronize_session=False)
+
+
+def _shift_duration_minutes(start_time, end_time) -> int:
+    today = date.today()
+    start_dt = datetime.combine(today, start_time)
+    end_dt = datetime.combine(today, end_time)
+    if end_dt <= start_dt:
+        end_dt += timedelta(days=1)
+    return int((end_dt - start_dt).total_seconds() // 60)
+
+
+def _handle_user_deletion(db: Session, admin_user: User, requested_ids: list[int]) -> dict:
+    candidate_ids = sorted({user_id for user_id in requested_ids if isinstance(user_id, int) and user_id > 0})
+    if not candidate_ids:
+        return {"removed": [], "message": "No valid users selected."}
+
+    users = (
+        db.query(User)
+        .filter(User.org_id == admin_user.org_id, User.id.in_(candidate_ids))
+        .all()
+    )
+    found_ids = {user.id for user in users}
+    not_found = sorted(set(candidate_ids) - found_ids)
+
+    protected = {
+        "self": [],
+        "owner": [],
+    }
+    removable = []
+    for user in users:
+        if user.id == admin_user.id:
+            protected["self"].append(user.id)
+            continue
+        if user.role == "OWNER":
+            protected["owner"].append(user.id)
+            continue
+        removable.append(user)
+
+    removed_ids = [user.id for user in removable]
+    if removed_ids:
+        _purge_user_dependencies(db, admin_user.org_id, removed_ids)
+        for user in removable:
+            db.delete(user)
+        db.commit()
+
+    message_parts: list[str] = []
+    if removed_ids:
+        message_parts.append(f"Removed {len(removed_ids)} user(s).")
+    if protected["self"]:
+        message_parts.append("Skipped removing your own account.")
+    if protected["owner"]:
+        message_parts.append("Organization owners cannot be removed.")
+    if not_found:
+        message_parts.append("Some users were not found.")
+
+    return {
+        "removed": removed_ids,
+        "protected": {k: v for k, v in protected.items() if v},
+        "not_found": not_found,
+        "message": " ".join(message_parts) or "No users were removed.",
+    }
 
 
 @router.get("", response_class=HTMLResponse)
@@ -79,6 +193,15 @@ async def admin_home(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@router.post("/users/delete")
+async def delete_users(payload: DeleteUsersPayload, request: Request, db: Session = Depends(get_db)):
+    _, admin_user = _require_admin(request, db)
+    result = _handle_user_deletion(db, admin_user, payload.user_ids)
+    if result.get("removed"):
+        return result
+    raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=result.get("message") or "No users removed")
+
+
 @router.get("/shifts", response_class=HTMLResponse)
 async def shifts_page(request: Request, db: Session = Depends(get_db)):
     session_user, admin_user = _get_admin(request, db)
@@ -88,11 +211,11 @@ async def shifts_page(request: Request, db: Session = Depends(get_db)):
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
 
     members = db.query(User).filter(User.org_id == admin_user.org_id).all()
-    member_lookup = {member.id: member for member in members}
     shifts = (
-        db.query(Shift)
-        .filter(Shift.org_id == admin_user.org_id)
-        .order_by(Shift.user_id, Shift.day_of_week, Shift.start_time)
+        db.query(ShiftTemplate)
+        .options(selectinload(ShiftTemplate.assignments).selectinload(ShiftAssignment.user))
+        .filter(ShiftTemplate.org_id == admin_user.org_id)
+        .order_by(ShiftTemplate.day_of_week, ShiftTemplate.start_time)
         .all()
     )
     return _render(
@@ -102,8 +225,14 @@ async def shifts_page(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "user": session_user,
             "members": members,
-            "member_lookup": member_lookup,
             "shifts": shifts,
+            "day_labels": DAY_LABELS,
+            "shift_error": request.query_params.get("shift_error"),
+            "shift_success": request.query_params.get("shift_success"),
+            "shift_work_minutes": shift_service.SHIFT_WORK_MINUTES,
+            "shift_break_minutes": shift_service.SHIFT_PAID_BREAK_MINUTES,
+            "shift_lunch_minutes": shift_service.SHIFT_LUNCH_MINUTES,
+            "shift_total_minutes": shift_service.SHIFT_TOTAL_WINDOW_MINUTES,
         },
     )
 
@@ -111,7 +240,7 @@ async def shifts_page(request: Request, db: Session = Depends(get_db)):
 @router.post("/shifts")
 async def create_shift(
     request: Request,
-    user_id: int = Form(...),
+    user_ids: list[int] = Form(...),
     day_of_week: int = Form(...),
     start_time: str = Form(...),
     end_time: str = Form(...),
@@ -123,18 +252,82 @@ async def create_shift(
     if not admin_user:
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
 
-    start = datetime.strptime(start_time, "%H:%M").time()
-    end = datetime.strptime(end_time, "%H:%M").time()
-    shift = Shift(
+    try:
+        start = datetime.strptime(start_time, "%H:%M").time()
+        end = datetime.strptime(end_time, "%H:%M").time()
+    except ValueError:
+        params = urlencode({"shift_error": "Invalid time format."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    duration = _shift_duration_minutes(start, end)
+    if duration != shift_service.SHIFT_TOTAL_WINDOW_MINUTES:
+        params = urlencode({"shift_error": "Shift must cover 7.5h work, 30m paid breaks, and 1h lunch (9h window)."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    if day_of_week < 0 or day_of_week > 6:
+        params = urlencode({"shift_error": "Invalid day of week."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    parsed_ids: set[int] = set()
+    for raw_id in user_ids:
+        try:
+            value = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            parsed_ids.add(value)
+    unique_user_ids = sorted(parsed_ids)
+    if not unique_user_ids:
+        params = urlencode({"shift_error": "Select at least one teammate."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    valid_users = (
+        db.query(User.id)
+        .filter(User.org_id == admin_user.org_id, User.id.in_(unique_user_ids))
+        .all()
+    )
+    if len(valid_users) != len(unique_user_ids):
+        params = urlencode({"shift_error": "One or more selected users are invalid."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    conflict = (
+        db.query(User)
+        .join(ShiftAssignment, ShiftAssignment.user_id == User.id)
+        .join(ShiftTemplate, ShiftAssignment.shift_id == ShiftTemplate.id)
+        .filter(
+            User.org_id == admin_user.org_id,
+            User.id.in_(unique_user_ids),
+            ShiftTemplate.day_of_week == day_of_week,
+            ShiftAssignment.effective_to.is_(None),
+        )
+        .first()
+    )
+    if conflict:
+        params = urlencode({"shift_error": f"{conflict.full_name} already has a shift that day."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    org = db.query(Organization).filter(Organization.id == admin_user.org_id).one()
+    tz_value = org.timezone or settings.default_timezone
+    shift = ShiftTemplate(
         org_id=admin_user.org_id,
-        user_id=user_id,
+        name=f"{SHORT_DAY_LABELS[day_of_week]} {start.strftime('%H:%M')}",
         day_of_week=day_of_week,
         start_time=start,
         end_time=end,
+        timezone=tz_value,
     )
     db.add(shift)
+    db.flush()
+
+    today = datetime.now(ZoneInfo(tz_value)).date()
+    assignments = [
+        ShiftAssignment(shift_id=shift.id, user_id=uid, effective_from=today)
+        for uid in unique_user_ids
+    ]
+    db.add_all(assignments)
     db.commit()
-    return RedirectResponse(url="/admin/shifts", status_code=status.HTTP_303_SEE_OTHER)
+    params = urlencode({"shift_success": "Shift created."})
+    return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.post("/shifts/{shift_id}/delete")
@@ -146,12 +339,32 @@ async def delete_shift(shift_id: int, request: Request, db: Session = Depends(ge
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
 
     shift = (
-        db.query(Shift)
-        .filter(Shift.id == shift_id, Shift.org_id == admin_user.org_id)
+        db.query(ShiftTemplate)
+        .filter(ShiftTemplate.id == shift_id, ShiftTemplate.org_id == admin_user.org_id)
         .one_or_none()
     )
     if shift:
         db.delete(shift)
+        db.commit()
+    return RedirectResponse(url="/admin/shifts", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/shifts/assignments/{assignment_id}/delete")
+async def delete_shift_assignment(assignment_id: int, request: Request, db: Session = Depends(get_db)):
+    session_user, admin_user = _get_admin(request, db)
+    if not session_user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+    if not admin_user:
+        return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+
+    assignment = (
+        db.query(ShiftAssignment)
+        .join(ShiftTemplate, ShiftAssignment.shift_id == ShiftTemplate.id)
+        .filter(ShiftAssignment.id == assignment_id, ShiftTemplate.org_id == admin_user.org_id)
+        .one_or_none()
+    )
+    if assignment:
+        db.delete(assignment)
         db.commit()
     return RedirectResponse(url="/admin/shifts", status_code=status.HTTP_303_SEE_OTHER)
 

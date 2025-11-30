@@ -1,4 +1,5 @@
 :root{--header-height:88px;}*{box-sizing:border-box;}body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#edf0f5;margin:0;color:#111827;}a{text-decoration:none;color:#2563eb;}main{padding:0;}header.site-header{display:flex;justify-content:space-between;align-items:center;padding:1rem 2rem;background:#0f172a;color:#fff;}header nav a,header nav button{margin-right:1rem;color:#fff;background:none;border:none;cursor:pointer;font-size:0.95rem;}header nav form{display:inline;}header nav button{padding:0;}button{background:#2563eb;color:#fff;border:none;padding:0.65rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;transition:transform .15s ease,box-shadow .15s ease;}button:hover{background:#1d4ed8;transform:translateY(-1px);}button.secondary{background:#f1f5f9;color:#0f172a;}button.secondary:hover{background:#e2e8f0;}label{font-weight:600;font-size:0.9rem;color:#475569;}input,select,textarea{width:100%;padding:0.6rem;border:1px solid #cbd5f5;border-radius:8px;font-family:inherit;}textarea{resize:vertical;}
+button{background:#2563eb;color:#fff;border:none;padding:0.65rem 1rem;border-radius:8px;cursor:pointer;font-weight:600;transition:transform .15s ease,box-shadow .15s ease;}button:hover{background:#1d4ed8;transform:translateY(-1px);}button.secondary{background:#f1f5f9;color:#0f172a;}button.secondary:hover{background:#e2e8f0;}button.danger{background:#b91c1c;}button.danger:hover{background:#991b1b;}button.danger:disabled{background:#fecaca;color:#991b1b;cursor:not-allowed;box-shadow:none;transform:none;opacity:0.85;}label{font-weight:600;font-size:0.9rem;color:#475569;}input,select,textarea{width:100%;padding:0.6rem;border:1px solid #cbd5f5;border-radius:8px;font-family:inherit;}textarea{resize:vertical;}
 .app-shell{display:flex;gap:1.4rem;align-items:flex-start;padding:0.75rem 0 2rem 1.25rem;width:100%;max-width:none;margin:0;min-height:calc(100vh - var(--header-height,72px));}.app-shell--solo{justify-content:center;}
 .app-content{flex:1;min-width:0;max-width:1100px;margin-right:auto;}
 .card{background:#fff;border-radius:20px;padding:1.75rem;box-shadow:0 25px 70px rgba(15,23,42,.08);display:flex;flex-direction:column;gap:1.25rem;}
@@ -88,6 +89,19 @@
 .empty-state{margin:1rem 0 0;color:#94a3b8;text-align:center;}
 .table-pagination{display:flex;align-items:center;gap:1rem;} .table-pagination span{font-size:0.9rem;color:#475569;} .table-pagination button{border:1px solid #cbd5f5;background:#fff;color:#0f172a;padding:0.35rem 0.9rem;border-radius:8px;} .table-pagination button[disabled]{opacity:0.5;cursor:not-allowed;}
 .invite-form{display:flex;flex-direction:column;gap:0.75rem;} .form-feedback{font-size:0.85rem;color:#059669;margin:0;min-height:1.1rem;}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;}
+.form-grid label{display:flex;flex-direction:column;gap:0.35rem;}
+.shift-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-top:1rem;}
+.shift-card{border:1px solid #e2e8f0;border-radius:18px;padding:1rem;background:#fff;box-shadow:0 10px 30px rgba(15,23,42,.06);display:flex;flex-direction:column;gap:0.75rem;}
+.shift-card header{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;}
+.shift-card__body{display:flex;flex-direction:column;gap:0.5rem;}
+.assignment-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.4rem;}
+.assignment-list li{display:flex;justify-content:space-between;align-items:center;padding:0.4rem 0;border-bottom:1px solid #f1f5f9;}
+.assignment-list li:last-child{border-bottom:none;}
+.panel-heading{display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap;}
+.panel-actions{display:flex;gap:0.5rem;flex-wrap:wrap;}
+.tag{display:inline-flex;align-items:center;background:#f1f5f9;color:#475569;border-radius:999px;padding:0.1rem 0.6rem;font-size:0.72rem;font-weight:600;margin-left:0.35rem;}
+.small-text{font-size:0.8rem;}
 .chat-panel-empty{justify-content:center;align-items:center;text-align:center;color:#94a3b8;font-size:0.95rem;}
 .muted{color:#6b7280;}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;}
