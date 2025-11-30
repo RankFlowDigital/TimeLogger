@@ -1201,21 +1201,15 @@ function initChatWidthControl() {
   applyDockWidth(dockValue);
   applySidebarWidth(sidebarValue);
 
-  dockHandle?.addEventListener("pointerdown", (event) => {
-    const initialDock = dockValue;
-    startDrag(event, (delta) => {
-      const next = clampValue(initialDock - delta, dockRange.min, dockRange.max);
-      applyDockWidth(next);
-    });
+  addDragListener(dockHandle, (delta) => {
+    const next = clampValue(dockValue - delta, dockRange.min, dockRange.max);
+    applyDockWidth(next);
   });
 
-  columnHandle?.addEventListener("pointerdown", (event) => {
-    const initialSidebar = sidebarValue;
-    startDrag(event, (delta) => {
-      const maxSidebar = Math.min(sidebarRange.max, dockValue - conversationMin);
-      const next = clampValue(initialSidebar + delta, sidebarRange.min, Math.max(sidebarRange.min, maxSidebar));
-      applySidebarWidth(next);
-    });
+  addDragListener(columnHandle, (delta) => {
+    const maxSidebar = Math.min(sidebarRange.max, dockValue - conversationMin);
+    const next = clampValue(sidebarValue + delta, sidebarRange.min, Math.max(sidebarRange.min, maxSidebar));
+    applySidebarWidth(next);
   });
 
   function applyDockWidth(value) {
@@ -1230,26 +1224,71 @@ function initChatWidthControl() {
     localStorage.setItem("chatSidebarWidth", value);
   }
 
-  function startDrag(event, onMove) {
+  function addDragListener(handle, onMove) {
+    if (!handle || typeof onMove !== "function") return;
+    const supportsPointer = window.PointerEvent !== undefined;
+    if (supportsPointer) {
+      handle.addEventListener("pointerdown", (event) => startDrag(event, handle, onMove, "pointer"));
+    } else {
+      handle.addEventListener("mousedown", (event) => startDrag(event, handle, onMove, "mouse"));
+      handle.addEventListener(
+        "touchstart",
+        (event) => startDrag(event, handle, onMove, "touch"),
+        { passive: false }
+      );
+    }
+  }
+
+  function startDrag(event, handle, onMove, mode) {
     event.preventDefault();
-    const startX = event.clientX;
-    const pointerId = event.pointerId;
-    const handle = event.currentTarget;
-    handle.setPointerCapture(pointerId);
+    const startX = getClientX(event);
+    if (startX == null) return;
+    const pointerId = mode === "pointer" ? event.pointerId : null;
+    if (mode === "pointer" && pointerId != null && handle.setPointerCapture) {
+      handle.setPointerCapture(pointerId);
+    }
 
     const moveListener = (moveEvent) => {
-      const delta = moveEvent.clientX - startX;
+      const currentX = getClientX(moveEvent);
+      if (currentX == null) return;
+      const delta = currentX - startX;
       onMove(delta);
     };
 
     const upListener = () => {
-      handle.releasePointerCapture(pointerId);
-      document.removeEventListener("pointermove", moveListener);
-      document.removeEventListener("pointerup", upListener);
+      if (mode === "pointer" && pointerId != null && handle.releasePointerCapture) {
+        handle.releasePointerCapture(pointerId);
+      }
+      detach();
     };
 
-    document.addEventListener("pointermove", moveListener);
-    document.addEventListener("pointerup", upListener);
+    const cancelListener = () => {
+      if (mode === "pointer" && pointerId != null && handle.releasePointerCapture) {
+        handle.releasePointerCapture(pointerId);
+      }
+      detach();
+    };
+
+    const detach = () => {
+      window.removeEventListener(moveEventName, moveListener);
+      window.removeEventListener(upEventName, upListener);
+      window.removeEventListener(cancelEventName, cancelListener);
+    };
+
+    const moveEventName = mode === "pointer" ? "pointermove" : mode === "touch" ? "touchmove" : "mousemove";
+    const upEventName = mode === "pointer" ? "pointerup" : mode === "touch" ? "touchend" : "mouseup";
+    const cancelEventName = mode === "pointer" ? "pointercancel" : mode === "touch" ? "touchcancel" : "mouseleave";
+
+    window.addEventListener(moveEventName, moveListener, { passive: false });
+    window.addEventListener(upEventName, upListener, { passive: false });
+    window.addEventListener(cancelEventName, cancelListener, { passive: false });
+  }
+
+  function getClientX(event) {
+    if (typeof event.clientX === "number") return event.clientX;
+    if (event.touches?.length) return event.touches[0].clientX;
+    if (event.changedTouches?.length) return event.changedTouches[0].clientX;
+    return null;
   }
 
   function clampValue(value, min, max, fallback = min) {
