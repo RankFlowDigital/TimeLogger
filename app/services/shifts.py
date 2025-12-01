@@ -229,3 +229,35 @@ def _resolve_timezone(user_tz: Optional[str], org_tz: Optional[str]) -> str:
     if org_tz:
         return org_tz
     return settings.default_timezone
+
+
+def can_start_within_pre_shift_window(
+    db: Session,
+    user_id: int,
+    tolerance_minutes: int = 5,
+) -> bool:
+    """Return True when user has a shift starting within the tolerance window on the same day."""
+
+    tolerance = max(0, min(30, tolerance_minutes or 0))
+    if tolerance == 0:
+        return False
+
+    now_utc = datetime.utcnow()
+    future_reference = now_utc + timedelta(minutes=tolerance)
+    windows = _windows_for_assignments(db, user_id, future_reference)
+    for window in windows:
+        # Only consider real shift assignments, not manual override windows.
+        if window.assignment_id == 0:
+            continue
+        start_utc = _as_utc(window.start_utc)
+        if start_utc <= now_utc:
+            continue
+        minutes_until = (start_utc - now_utc).total_seconds() / 60.0
+        if minutes_until <= 0 or minutes_until > tolerance:
+            continue
+        tz = window.local_start.tzinfo or ZoneInfo(window.timezone)
+        now_local = datetime.now(tz)
+        if now_local.date() != window.local_start.date():
+            continue
+        return True
+    return False

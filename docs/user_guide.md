@@ -30,6 +30,7 @@ This guide explains how the TimeTrack platform captures working time, how deduct
 
 ## 4. Using the Dashboard
 - **Session Controls** – Use the prominent buttons to start Work, Lunch, or Break. Always close one session before opening another to avoid overlapping entries.
+- **Pre-shift Starts** – You can start work up to 5 minutes before your scheduled shift. The extra minutes only count once the shift window begins, but this helps you be ready right as the day starts.
 - **My Shifts Card** – The dashboard lists upcoming shifts in whatever timezone you select (device, personal preference, etc.), so everyone sees their schedule in local time while the system stores the canonical timezone from the admin who created it.
 - **Timeline & Table** – Review the chronological list of events to verify every transition. Editable data lives in the Admin > Shifts/Reports pages; the dashboard is a read-only view for transparency.
 - **Summary Card** – Shows today’s work, break, and deduction totals along with computed net hours.

@@ -21,9 +21,11 @@ def _require_user(request: Request) -> dict:
     return user
 
 
-def _require_shift_access(db: Session, user_id: int) -> None:
+def _require_shift_access(db: Session, user_id: int, *, allow_pre_shift: bool = False) -> None:
     window = shift_service.get_active_shift_window(db, user_id)
     if window:
+        return
+    if allow_pre_shift and shift_service.can_start_within_pre_shift_window(db, user_id, tolerance_minutes=5):
         return
     if shift_service.user_has_unassigned_access(db, user_id):
         return
@@ -89,7 +91,7 @@ async def start_work(
     db: Session = Depends(get_db),
 ):
     user = _require_user(request)
-    _require_shift_access(db, user["id"])
+    _require_shift_access(db, user["id"], allow_pre_shift=True)
     _close_open_session(db, user["id"])
     session = _start_session(db, user, "WORK", payload.task_description if payload else None)
     return JSONResponse({"status": "started", "session_id": session.id})
