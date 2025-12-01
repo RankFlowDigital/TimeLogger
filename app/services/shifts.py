@@ -242,7 +242,7 @@ def can_start_within_pre_shift_window(
     if tolerance == 0:
         return False
 
-    now_utc = datetime.utcnow()
+    now_utc = datetime.now(timezone.utc)
     future_reference = now_utc + timedelta(minutes=tolerance)
     windows = _windows_for_assignments(db, user_id, future_reference)
     for window in windows:
