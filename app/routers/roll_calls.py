@@ -90,7 +90,7 @@ async def respond_roll_call(
     return JSONResponse({"status": roll_call.result})
 
 
-@router.post("/internal/rollcall-tick")
+@router.api_route("/internal/rollcall-tick", methods=["POST", "GET"])
 async def rollcall_tick(request: Request, db: Session = Depends(get_db)):
     token = request.headers.get("x-rollcall-token") or request.query_params.get("token")
     if settings.rollcall_tick_token and token != settings.rollcall_tick_token:
@@ -116,7 +116,7 @@ async def rollcall_tick(request: Request, db: Session = Depends(get_db)):
     return JSONResponse({"scheduled": len(scheduled)})
 
 
-@router.post("/internal/rollcall-expire")
+@router.api_route("/internal/rollcall-expire", methods=["POST", "GET"])
 async def rollcall_expire(request: Request, db: Session = Depends(get_db)):
     token = request.headers.get("x-rollcall-token") or request.query_params.get("token")
     if settings.rollcall_tick_token and token != settings.rollcall_tick_token:
