@@ -1,6 +1,7 @@
 """Seed a small demo org plus users/shifts into the configured database."""
 
 from datetime import date, time
+import argparse
 
 from app.db import SessionLocal
 from app.models import Organization, ShiftAssignment, ShiftTemplate, User
@@ -85,20 +86,27 @@ def ensure_shift(session, org: Organization, users: list[User], day_of_week: int
         )
 
 
-def main() -> None:
+def main(owner_email: str = OWNER_EMAIL) -> None:
     session = SessionLocal()
     try:
         org = ensure_org(session)
-        owner = ensure_user(session, org, OWNER_EMAIL, "Demo Owner", "OWNER")
+        owner = ensure_user(session, org, owner_email, "Demo Owner", "OWNER")
         member = ensure_user(session, org, MEMBER_EMAIL, "Demo Agent", "MEMBER")
         ensure_shift(session, org, [owner, member], 0, time(9, 0), time(18, 0))
         session.commit()
         print("Demo data ready:")
-        print(f"  Owner login: {OWNER_EMAIL} / {DEFAULT_PASSWORD}")
+        print(f"  Owner login: {owner_email} / {DEFAULT_PASSWORD}")
         print(f"  Member login: {MEMBER_EMAIL} / {DEFAULT_PASSWORD}")
     finally:
         session.close()
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Seed demo data into the configured database")
+    parser.add_argument(
+        "--owner-email",
+        default=OWNER_EMAIL,
+        help="Email address to use for the owner account (default: %(default)s)",
+    )
+    args = parser.parse_args()
+    main(owner_email=args.owner_email)
