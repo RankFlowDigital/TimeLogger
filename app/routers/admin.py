@@ -25,6 +25,7 @@ from ..models import (
 )
 from ..services import rollcall_scheduler, shifts as shift_service
 from ..config import get_settings
+from ..constants import DEVICE_TIMEZONE
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 templates = Path(__file__).resolve().parents[1] / "templates"
@@ -322,7 +323,12 @@ async def create_shift(
         return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
 
     org = db.query(Organization).filter(Organization.id == admin_user.org_id).one()
-    tz_value = org.timezone or settings.default_timezone
+    user_defined_timezone = (
+        admin_user.timezone
+        if admin_user.timezone and admin_user.timezone != DEVICE_TIMEZONE
+        else None
+    )
+    tz_value = user_defined_timezone or org.timezone or settings.default_timezone
     shift = ShiftTemplate(
         org_id=admin_user.org_id,
         name=f"{SHORT_DAY_LABELS[day_of_week]} {start.strftime('%H:%M')}",

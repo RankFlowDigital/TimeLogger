@@ -336,6 +336,72 @@ function renderRollCallHistory(state) {
   }
 }
 
+function formatShiftDate(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  return formatWithTimezone(date, { weekday: "short", month: "short", day: "numeric" });
+}
+
+function formatShiftTime(value) {
+  const date = value instanceof Date ? value : new Date(value);
+  return formatWithTimezone(date, { timeStyle: "short" });
+}
+
+function shiftTimezoneLabel() {
+  const preference = dashboardRuntime.getTimezonePreference();
+  if (preference === DEVICE_TIMEZONE) {
+    return `Device (${resolveDeviceTimezone()})`;
+  }
+  return preference || DEFAULT_TIMEZONE;
+}
+
+function renderShiftSchedule(state) {
+  const list = document.querySelector("[data-shift-schedule]");
+  if (!list) return;
+  const tzLabel = document.querySelector("[data-shift-schedule-tz]");
+  if (tzLabel) {
+    tzLabel.textContent = shiftTimezoneLabel();
+  }
+  list.innerHTML = "";
+  const schedule = Array.isArray(state?.upcoming_shifts) ? state.upcoming_shifts : [];
+  if (!schedule.length) {
+    const empty = document.createElement("li");
+    empty.className = "shift-schedule-empty";
+    empty.textContent = "No shifts scheduled yet.";
+    list.appendChild(empty);
+    return;
+  }
+  schedule.slice(0, 10).forEach((entry) => {
+    if (!entry?.start_utc || !entry?.end_utc) {
+      return;
+    }
+    const row = document.createElement("li");
+    row.className = "shift-schedule-row";
+
+    const dateBlock = document.createElement("div");
+    dateBlock.className = "shift-schedule-date";
+    const day = document.createElement("p");
+    day.textContent = formatShiftDate(entry.start_utc);
+    dateBlock.appendChild(day);
+
+    const detailBlock = document.createElement("div");
+    detailBlock.className = "shift-schedule-detail";
+    const time = document.createElement("div");
+    time.className = "shift-schedule-time";
+    time.textContent = `${formatShiftTime(entry.start_utc)} – ${formatShiftTime(entry.end_utc)}`;
+    detailBlock.appendChild(time);
+
+    if (entry.source_timezone) {
+      const meta = document.createElement("div");
+      meta.className = "shift-schedule-meta";
+      meta.textContent = `Created in ${entry.source_timezone}`;
+      detailBlock.appendChild(meta);
+    }
+
+    row.append(dateBlock, detailBlock);
+    list.appendChild(row);
+  });
+}
+
 function renderTimezoneLabel() {
   const label = document.querySelector("[data-timezone-display]");
   if (!label) return;
@@ -597,6 +663,7 @@ function hydrateDashboard() {
     renderSummary(state);
     renderActivityLog(state);
     renderRoster(state);
+    renderShiftSchedule(state);
     renderRollCallHistory(state);
     renderTimezoneLabel();
     updateControlStates(state);

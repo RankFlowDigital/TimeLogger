@@ -148,6 +148,36 @@ def _as_utc(value: datetime) -> datetime:
     return value.replace(tzinfo=timezone.utc)
 
 
+def describe_user_schedule(db: Session, user_id: int, days_ahead: int = 7) -> list[dict]:
+    """Return upcoming shift windows as UTC timestamps for display conversions."""
+
+    window_limit = max(1, min(31, days_ahead))
+    today = date.today()
+    schedule: list[dict] = []
+    for offset in range(window_limit):
+        target = today + timedelta(days=offset)
+        for window in get_shift_windows_for_day(db, user_id, target):
+            # Skip synthetic windows created for manual overrides.
+            if window.assignment_id == 0:
+                continue
+            start_utc = _as_utc(window.start_utc)
+            end_utc = _as_utc(window.end_utc)
+            schedule.append(
+                {
+                    "start_utc": _iso_utc(start_utc),
+                    "end_utc": _iso_utc(end_utc),
+                    "source_timezone": window.timezone,
+                }
+            )
+    schedule.sort(key=lambda item: item["start_utc"])
+    return schedule
+
+
+def _iso_utc(value: datetime) -> str:
+    aware = _as_utc(value)
+    return aware.isoformat().replace("+00:00", "Z")
+
+
 def user_has_unassigned_access(db: Session, user_id: int) -> bool:
     return bool(
         db.query(User.allow_unassigned_sessions)

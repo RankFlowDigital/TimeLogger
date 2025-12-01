@@ -126,6 +126,14 @@
         <ul class="team-presence-list" data-team-roster></ul>
     </section>
 
+    <section class="card schedule-card">
+        <header>
+            <h2>My Shifts</h2>
+            <p class="muted">Times shown in <span data-shift-schedule-tz>--</span></p>
+        </header>
+        <ul class="shift-schedule" data-shift-schedule></ul>
+    </section>
+
 </div>
 <script id="dashboard-state" type="application/json">{{ dashboard_state | tojson | safe }}</script>
 {% endblock %}

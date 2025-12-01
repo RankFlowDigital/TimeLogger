@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import RollCall, User, WorkSession
+from ..services import shifts as shift_service
 from ..services.attendance import build_summary_for_day, build_summary_for_range
 from ..services.reporting import get_user_summary
 from ..config import get_settings
@@ -259,6 +260,8 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
         for rc, name in org_roll_call_history
     ]
 
+    upcoming_shifts = shift_service.describe_user_schedule(db, user_session["id"], days_ahead=10)
+
     payload = {
         "user": {
             "id": user_record.id,
@@ -277,6 +280,7 @@ def _build_dashboard_payload(db: Session, user_session: dict) -> dict:
         "active_roll_calls": active_roll_call_payload,
         "org_roll_call_history": org_roll_call_history_payload,
         "work_carry_seconds": work_carry_seconds,
+        "upcoming_shifts": upcoming_shifts,
     }
     if open_session:
         payload["open_session"] = {

@@ -10,7 +10,7 @@ This guide explains how the TimeTrack platform captures working time, how deduct
 ## 2. Key Concepts
 - **Organization** – The tenant container. Each org has one owner plus members. Settings such as expected roll-call cadence live here.
 - **Roles** – `OWNER` can manage users, shifts, and reports. `MEMBER/AGENT` focuses on their own sessions and roll calls.
-- **Shifts & Windows** – Shifts define when work minutes can accrue. Only time that overlaps a scheduled shift window counts toward work totals.
+- **Shifts & Windows** – Shifts define when work minutes can accrue. Only time that overlaps a scheduled shift window counts toward work totals, and shift start/end times convert automatically into each teammate’s preferred timezone.
 - **Work Sessions** – Timestamped records with a `session_type` (`WORK`, `LUNCH`, `SHORT_BREAK`). Sessions open when you click a tile in the dashboard and close when you end it.
 - **Roll Calls** – Randomized spot checks. A pending roll call shows on the dashboard banner; failing to respond in time creates an automatic deduction.
 - **Deductions** – Minutes removed from net hours when breaks exceed allowances or when roll-call responses are late.
@@ -30,6 +30,7 @@ This guide explains how the TimeTrack platform captures working time, how deduct
 
 ## 4. Using the Dashboard
 - **Session Controls** – Use the prominent buttons to start Work, Lunch, or Break. Always close one session before opening another to avoid overlapping entries.
+- **My Shifts Card** – The dashboard lists upcoming shifts in whatever timezone you select (device, personal preference, etc.), so everyone sees their schedule in local time while the system stores the canonical timezone from the admin who created it.
 - **Timeline & Table** – Review the chronological list of events to verify every transition. Editable data lives in the Admin > Shifts/Reports pages; the dashboard is a read-only view for transparency.
 - **Summary Card** – Shows today’s work, break, and deduction totals along with computed net hours.
 - **Roll-Call Banner** – Appears when a roll call targets you. Click “Confirm” immediately to avoid deductions.
@@ -50,6 +51,7 @@ This guide explains how the TimeTrack platform captures working time, how deduct
 
 ## 7. Admin Best Practices
 - **Shift Hygiene** – Keep shift templates up to date so new employees receive the correct windows and the attendance service has accurate bounds.
+- **Timezone Accuracy** – When creating or editing shifts, the admin or owner’s profile timezone is captured as the template’s canonical timezone, and downstream dashboards convert that window for every viewer automatically.
 - **Roster Monitoring** – Use the live roster to spot idle sessions (e.g., user “on Work” for hours without roll calls). Ping them or schedule an ad-hoc roll call.
 - **Deductions Audit** – Admins can inspect `Admin > Reports` to see overbreak vs roll-call deductions per user and make adjustments when legitimate exceptions occur.
 - **Manual Start Overrides** – If someone needs to clock in before their shift is configured, go to `Admin > Shifts`, grant a manual start, and remember to revoke it once their template is set.
