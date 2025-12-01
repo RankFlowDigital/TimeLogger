@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 from random import choice, randint
 
-from sqlalchemy import and_, extract
+from sqlalchemy import and_, extract, select
 from sqlalchemy.orm import Session
 
 from ..models import Leave, RollCall, User, WorkSession
@@ -150,7 +150,7 @@ def _get_active_users(db: Session, org_id: int, now: datetime) -> list[User]:
             WorkSession.session_type == "WORK",
             WorkSession.started_at <= now,
             WorkSession.ended_at.is_(None),
-            ~User.id.in_(leave_today),
+            ~User.id.in_(select(leave_today)),
         )
         .all()
     )
