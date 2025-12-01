@@ -154,9 +154,5 @@ def _get_active_users(db: Session, org_id: int, now: datetime) -> list[User]:
         )
         .all()
     )
-    active = []
-    for user in users:
-        window = shift_service.get_shift_window_for_timestamp(db, user.id, now)
-        if window:
-            active.append(user)
-    return active
+    # Any teammate with an active WORK session is eligible for roll call, regardless of shift assignment.
+    return users
