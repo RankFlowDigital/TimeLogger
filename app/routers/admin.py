@@ -54,6 +54,60 @@ def _render(request: Request, template_name: str, context: dict) -> HTMLResponse
     return template.TemplateResponse(template_name, ctx)
 
 
+def _resolve_viewer_timezone(session_user: dict, admin_user: User | None) -> str:
+    candidate = None
+    if admin_user and admin_user.timezone:
+        candidate = admin_user.timezone
+    if (not candidate or candidate == DEVICE_TIMEZONE) and session_user:
+        candidate = session_user.get("timezone")
+    if not candidate or candidate == DEVICE_TIMEZONE:
+        candidate = settings.default_timezone
+    return candidate
+
+
+def _reference_date_for_weekday(target_weekday: int) -> date:
+    today = date.today()
+    delta = (target_weekday - today.weekday()) % 7
+    return today + timedelta(days=delta)
+
+
+def _format_shift_window_for_viewer(
+    shift: ShiftTemplate,
+    viewer_timezone: str,
+    fallback_timezone: str,
+) -> dict:
+    base_date = _reference_date_for_weekday(shift.day_of_week)
+    source_tz_value = shift.timezone or fallback_timezone or settings.default_timezone
+    try:
+        source_tz = ZoneInfo(source_tz_value)
+    except Exception:
+        source_tz = ZoneInfo(settings.default_timezone)
+        source_tz_value = settings.default_timezone
+    try:
+        viewer_tz = ZoneInfo(viewer_timezone)
+    except Exception:
+        viewer_timezone = settings.default_timezone
+        viewer_tz = ZoneInfo(settings.default_timezone)
+
+    start_local = datetime.combine(base_date, shift.start_time, source_tz)
+    end_local = datetime.combine(base_date, shift.end_time, source_tz)
+    if end_local <= start_local:
+        end_local += timedelta(days=1)
+
+    start_view = start_local.astimezone(viewer_tz)
+    end_view = end_local.astimezone(viewer_tz)
+
+    def _label(dt: datetime) -> str:
+        return dt.strftime("%I:%M %p").lstrip("0")
+
+    return {
+        "start_label": _label(start_view),
+        "end_label": _label(end_view),
+        "viewer_timezone": viewer_timezone,
+        "source_timezone": source_tz_value,
+    }
+
+
 class DeleteUsersPayload(BaseModel):
     user_ids: list[int] = Field(..., min_length=1)
 
@@ -211,6 +265,7 @@ async def shifts_page(request: Request, db: Session = Depends(get_db)):
     if not admin_user:
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
 
+    org = db.query(Organization).filter(Organization.id == admin_user.org_id).one()
     members = (
         db.query(User)
         .filter(User.org_id == admin_user.org_id)
@@ -225,9 +280,28 @@ async def shifts_page(request: Request, db: Session = Depends(get_db)):
         .all()
     )
 
+    viewer_timezone = _resolve_viewer_timezone(session_user, admin_user)
+    org_timezone = org.timezone or settings.default_timezone
+
+    shift_display_map: dict[int, dict] = {}
+    for shift in shifts:
+        shift_display_map[shift.id] = _format_shift_window_for_viewer(
+            shift,
+            viewer_timezone,
+            org_timezone,
+        )
+
     member_shift_map: dict[int, list[str]] = {member.id: [] for member in members}
     for shift in shifts:
-        label = f"{DAY_LABELS[shift.day_of_week]} {shift.start_time.strftime('%H:%M')}–{shift.end_time.strftime('%H:%M')}"
+        display = shift_display_map.get(shift.id)
+        if display:
+            label = (
+                f"{DAY_LABELS[shift.day_of_week]} "
+                f"{display['start_label']} – {display['end_label']}"
+                f" ({display['viewer_timezone']})"
+            )
+        else:
+            label = f"{DAY_LABELS[shift.day_of_week]} {shift.start_time.strftime('%H:%M')}–{shift.end_time.strftime('%H:%M')}"
         for assignment in shift.assignments:
             member_shift_map.setdefault(assignment.user_id, []).append(label)
     for assignments in member_shift_map.values():
@@ -241,6 +315,8 @@ async def shifts_page(request: Request, db: Session = Depends(get_db)):
             "user": session_user,
             "members": members,
             "shifts": shifts,
+            "shift_display_map": shift_display_map,
+            "viewer_timezone": viewer_timezone,
             "member_shift_map": member_shift_map,
             "day_labels": DAY_LABELS,
             "shift_error": request.query_params.get("shift_error"),

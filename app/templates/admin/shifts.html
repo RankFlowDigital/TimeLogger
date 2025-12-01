@@ -74,10 +74,16 @@
     <div class="shift-grid">
         {% for shift in shifts %}
         <article class="shift-card">
+            {% set display = shift_display_map.get(shift.id) %}
             <header>
                 <div>
                     <strong>{{ day_labels[shift.day_of_week] }}</strong>
-                    <p class="muted">{{ shift.start_time.strftime('%H:%M') }} – {{ shift.end_time.strftime('%H:%M') }} ({{ shift.timezone or default_timezone }})</p>
+                    {% if display %}
+                    <p class="muted">{{ display.start_label }} – {{ display.end_label }} ({{ display.viewer_timezone }})</p>
+                    <p class="small-text muted">Created in {{ display.source_timezone }}</p>
+                    {% else %}
+                    <p class="muted">{{ shift.start_time.strftime('%H:%M') }} – {{ shift.end_time.strftime('%H:%M') }} ({{ default_timezone }})</p>
+                    {% endif %}
                 </div>
                 <form method="post" action="/admin/shifts/{{ shift.id }}/delete">
                     <button type="submit" class="danger" onclick="return confirm('Delete this shift template? Assignments will be removed.');">Delete</button>
@@ -108,6 +114,7 @@
     <div class="panel-heading">
         <h2>Teammate coverage &amp; manual overrides</h2>
     </div>
+    <p class="muted">Times shown in {{ viewer_timezone }}.</p>
     {% if not members %}
     <p class="muted">Invite teammates to manage their shifts.</p>
     {% else %}
