@@ -8,8 +8,10 @@
 {% endif %}
 
 <section class="panel">
-    <h2>Create shift template</h2>
-    <p class="muted">Each shift covers {{ (shift_work_minutes / 60)|round(1) }} hours of work, {{ shift_break_minutes }} minutes of paid short breaks, and {{ shift_lunch_minutes // 60 }} hour of unpaid lunch.</p>
+    <div class="panel-heading">
+        <h2>Create shift template</h2>
+    </div>
+    <p class="muted">Each template spans {{ (shift_work_minutes / 60)|round(1) }} hours of work, {{ shift_break_minutes }} minutes of paid short breaks, and {{ shift_lunch_minutes // 60 }} hour of unpaid lunch (9 hour window).</p>
     <form method="post" action="/admin/shifts" class="form-grid">
         <label>Day of week
             <select name="day_of_week" required>
@@ -24,7 +26,7 @@
         <label>End time
             <input type="time" name="end_time" required>
         </label>
-        <label>Assign teammates
+        <label>Assign teammates now
             <select name="user_ids" multiple size="6" required>
                 {% for member in members %}
                 <option value="{{ member.id }}">{{ member.full_name }} ({{ member.role.title() }})</option>
@@ -34,6 +36,34 @@
         </label>
         <button type="submit">Create shift</button>
     </form>
+</section>
+
+<section class="panel">
+    <div class="panel-heading">
+        <h2>Assign teammates to an existing shift</h2>
+    </div>
+    {% if shifts %}
+    <form method="post" action="/admin/shifts/assign" class="form-grid">
+        <label>Shift template
+            <select name="shift_id" required>
+                {% for shift in shifts %}
+                <option value="{{ shift.id }}">{{ day_labels[shift.day_of_week] }} · {{ shift.start_time.strftime('%H:%M') }} – {{ shift.end_time.strftime('%H:%M') }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Teammates
+            <select name="user_ids" multiple size="6" required>
+                {% for member in members %}
+                <option value="{{ member.id }}">{{ member.full_name }} ({{ member.role.title() }})</option>
+                {% endfor %}
+            </select>
+            <span class="muted">Assign teammates without recreating the shift template.</span>
+        </label>
+        <button type="submit">Assign shift</button>
+    </form>
+    {% else %}
+    <p class="muted">Create a shift template first, then you can assign it to additional teammates.</p>
+    {% endif %}
 </section>
 
 <section class="panel">
@@ -70,6 +100,68 @@
             </div>
         </article>
         {% endfor %}
+    </div>
+    {% endif %}
+</section>
+
+<section class="panel">
+    <div class="panel-heading">
+        <h2>Teammate coverage &amp; manual overrides</h2>
+    </div>
+    {% if not members %}
+    <p class="muted">Invite teammates to manage their shifts.</p>
+    {% else %}
+    <div class="table-wrapper">
+        <table class="coverage-table">
+            <thead>
+                <tr>
+                    <th>Teammate</th>
+                    <th>Assigned shifts</th>
+                    <th>Manual start</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in members %}
+                {% set coverage = member_shift_map.get(member.id) or [] %}
+                <tr>
+                    <td>
+                        <strong>{{ member.full_name }}</strong>
+                        <div class="muted small-text">{{ member.role.title() }}</div>
+                    </td>
+                    <td>
+                        {% if coverage %}
+                        <ul class="assignment-list assignment-list--compact">
+                            {% for label in coverage %}
+                            <li>{{ label }}</li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <span class="tag">No shift</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="manual-start-actions">
+                            {% if member.allow_unassigned_sessions %}
+                            <span class="tag">Enabled</span>
+                            <form method="post" action="/admin/shifts/unassigned">
+                                <input type="hidden" name="action" value="revoke">
+                                <input type="hidden" name="user_id" value="{{ member.id }}">
+                                <button type="submit" class="secondary">Require shift</button>
+                            </form>
+                            {% else %}
+                            <span class="muted small-text">Requires an active shift.</span>
+                            <form method="post" action="/admin/shifts/unassigned">
+                                <input type="hidden" name="action" value="allow">
+                                <input type="hidden" name="user_id" value="{{ member.id }}">
+                                <button type="submit" class="secondary">Allow manual start</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
     {% endif %}
 </section>

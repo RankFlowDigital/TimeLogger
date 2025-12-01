@@ -16,6 +16,7 @@ class User(Base):
     role = Column(user_role_enum, nullable=False, default="MEMBER")
     is_active = Column(Boolean, default=True)
     timezone = Column(String, nullable=True)
+    allow_unassigned_sessions = Column(Boolean, nullable=False, default=False, server_default="false")
     invited_at = Column(DateTime, nullable=True)
     joined_at = Column(DateTime, nullable=True)
     must_reset_password = Column(Boolean, nullable=False, default=False)

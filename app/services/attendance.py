@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from math import ceil
 
 from sqlalchemy import and_, extract
@@ -14,7 +14,7 @@ ALLOWED_LUNCH_MINUTES = 60
 ALLOWED_SHORT_BREAK_MINUTES = 30
 
 
-def build_summary_for_day(db: Session, user_id: int, target_date: date) -> SessionSummary:
+def build_summary_for_day(db: Session, user_id: int, target_date: date, *, sync_deductions: bool = True) -> SessionSummary:
     sessions = (
         db.query(WorkSession)
         .filter(
@@ -60,8 +60,30 @@ def build_summary_for_day(db: Session, user_id: int, target_date: date) -> Sessi
     deduction_hours = (summary.overbreak_minutes + summary.rollcall_deduction_minutes) / 60.0
     summary.net_hours = max(0.0, min(8.0, raw_hours) - deduction_hours)
 
-    _sync_overbreak_deduction(db, user_id, org_id, target_date, summary.overbreak_minutes, session_ids)
+    if sync_deductions:
+        _sync_overbreak_deduction(db, user_id, org_id, target_date, summary.overbreak_minutes, session_ids)
     return summary
+
+
+def build_summary_for_range(db: Session, user_id: int, start_date: date, end_date: date) -> SessionSummary:
+    """Aggregate daily summaries across a window without mutating deductions."""
+
+    window_start = min(start_date, end_date)
+    window_end = max(start_date, end_date)
+    aggregate = SessionSummary()
+    current = window_start
+    while current <= window_end:
+        daily = build_summary_for_day(db, user_id, current, sync_deductions=False)
+        aggregate.work_minutes += daily.work_minutes
+        aggregate.lunch_minutes += daily.lunch_minutes
+        aggregate.short_break_minutes += daily.short_break_minutes
+        aggregate.overbreak_minutes += daily.overbreak_minutes
+        aggregate.rollcall_deduction_minutes += daily.rollcall_deduction_minutes
+        aggregate.net_hours += daily.net_hours
+        current += timedelta(days=1)
+    # keep a predictable precision for display purposes
+    aggregate.net_hours = round(aggregate.net_hours, 2)
+    return aggregate
 
 
 def _sync_overbreak_deduction(db: Session, user_id: int, org_id: int | None, target_date: date, minutes: int, session_ids: list[int]):

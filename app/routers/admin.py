@@ -210,7 +210,12 @@ async def shifts_page(request: Request, db: Session = Depends(get_db)):
     if not admin_user:
         return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
 
-    members = db.query(User).filter(User.org_id == admin_user.org_id).all()
+    members = (
+        db.query(User)
+        .filter(User.org_id == admin_user.org_id)
+        .order_by(User.full_name.asc())
+        .all()
+    )
     shifts = (
         db.query(ShiftTemplate)
         .options(selectinload(ShiftTemplate.assignments).selectinload(ShiftAssignment.user))
@@ -218,6 +223,15 @@ async def shifts_page(request: Request, db: Session = Depends(get_db)):
         .order_by(ShiftTemplate.day_of_week, ShiftTemplate.start_time)
         .all()
     )
+
+    member_shift_map: dict[int, list[str]] = {member.id: [] for member in members}
+    for shift in shifts:
+        label = f"{DAY_LABELS[shift.day_of_week]} {shift.start_time.strftime('%H:%M')}–{shift.end_time.strftime('%H:%M')}"
+        for assignment in shift.assignments:
+            member_shift_map.setdefault(assignment.user_id, []).append(label)
+    for assignments in member_shift_map.values():
+        assignments.sort()
+
     return _render(
         request,
         "admin/shifts.html",
@@ -226,6 +240,7 @@ async def shifts_page(request: Request, db: Session = Depends(get_db)):
             "user": session_user,
             "members": members,
             "shifts": shifts,
+            "member_shift_map": member_shift_map,
             "day_labels": DAY_LABELS,
             "shift_error": request.query_params.get("shift_error"),
             "shift_success": request.query_params.get("shift_success"),
@@ -330,6 +345,91 @@ async def create_shift(
     return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
 
 
+@router.post("/shifts/assign")
+async def assign_existing_shift(
+    request: Request,
+    shift_id: int = Form(...),
+    user_ids: list[int] = Form(...),
+    db: Session = Depends(get_db),
+):
+    session_user, admin_user = _get_admin(request, db)
+    if not session_user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+    if not admin_user:
+        return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+
+    shift = (
+        db.query(ShiftTemplate)
+        .filter(ShiftTemplate.id == shift_id, ShiftTemplate.org_id == admin_user.org_id)
+        .one_or_none()
+    )
+    if not shift:
+        params = urlencode({"shift_error": "Shift not found."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    parsed_ids: set[int] = set()
+    for raw_id in user_ids:
+        try:
+            value = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if value > 0:
+            parsed_ids.add(value)
+    if not parsed_ids:
+        params = urlencode({"shift_error": "Select at least one teammate."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    valid_users = (
+        db.query(User.id)
+        .filter(User.org_id == admin_user.org_id, User.id.in_(parsed_ids))
+        .all()
+    )
+    if len(valid_users) != len(parsed_ids):
+        params = urlencode({"shift_error": "One or more selected users are invalid."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    already_assigned = (
+        db.query(User.full_name)
+        .join(ShiftAssignment, ShiftAssignment.user_id == User.id)
+        .filter(
+            ShiftAssignment.shift_id == shift.id,
+            ShiftAssignment.user_id.in_(parsed_ids),
+            ShiftAssignment.effective_to.is_(None),
+        )
+        .first()
+    )
+    if already_assigned:
+        params = urlencode({"shift_error": f"{already_assigned.full_name} is already on that shift."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    conflict = (
+        db.query(User.full_name)
+        .join(ShiftAssignment, ShiftAssignment.user_id == User.id)
+        .join(ShiftTemplate, ShiftAssignment.shift_id == ShiftTemplate.id)
+        .filter(
+            User.org_id == admin_user.org_id,
+            User.id.in_(parsed_ids),
+            ShiftTemplate.day_of_week == shift.day_of_week,
+            ShiftAssignment.effective_to.is_(None),
+            ShiftAssignment.shift_id != shift.id,
+        )
+        .first()
+    )
+    if conflict:
+        params = urlencode({"shift_error": f"{conflict.full_name} already has a shift that day."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    today = date.today()
+    assignments = [
+        ShiftAssignment(shift_id=shift.id, user_id=uid, effective_from=today)
+        for uid in sorted(parsed_ids)
+    ]
+    db.add_all(assignments)
+    db.commit()
+    params = urlencode({"shift_success": f"Assigned shift to {len(assignments)} teammate(s)."})
+    return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+
 @router.post("/shifts/{shift_id}/delete")
 async def delete_shift(shift_id: int, request: Request, db: Session = Depends(get_db)):
     session_user, admin_user = _get_admin(request, db)
@@ -367,6 +467,41 @@ async def delete_shift_assignment(assignment_id: int, request: Request, db: Sess
         db.delete(assignment)
         db.commit()
     return RedirectResponse(url="/admin/shifts", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/shifts/unassigned")
+async def toggle_unassigned_access(
+    request: Request,
+    user_id: int = Form(...),
+    action: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    session_user, admin_user = _get_admin(request, db)
+    if not session_user:
+        return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
+    if not admin_user:
+        return RedirectResponse(url="/dashboard", status_code=status.HTTP_302_FOUND)
+
+    if action not in {"allow", "revoke"}:
+        params = urlencode({"shift_error": "Unsupported action."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    target = (
+        db.query(User)
+        .filter(User.org_id == admin_user.org_id, User.id == user_id)
+        .one_or_none()
+    )
+    if not target:
+        params = urlencode({"shift_error": "User not found."})
+        return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
+
+    desired_state = action == "allow"
+    target.allow_unassigned_sessions = desired_state
+    db.commit()
+
+    message = "Manual start enabled." if desired_state else "Manual start disabled."
+    params = urlencode({"shift_success": f"{target.full_name}: {message}"})
+    return RedirectResponse(url=f"/admin/shifts?{params}", status_code=status.HTTP_303_SEE_OTHER)
 
 
 @router.get("/leaves", response_class=HTMLResponse)

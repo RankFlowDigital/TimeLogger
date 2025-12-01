@@ -8,7 +8,8 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session, joinedload
 
 from ..config import get_settings
-from ..models import Organization, ShiftAssignment, ShiftTemplate
+from ..constants import DEVICE_TIMEZONE
+from ..models import Organization, ShiftAssignment, ShiftTemplate, User
 
 SHIFT_WORK_MINUTES = 450  # 7.5 hours
 SHIFT_PAID_BREAK_MINUTES = 30
@@ -53,6 +54,10 @@ def get_shift_windows_for_day(db: Session, user_id: int, target_date: date) -> L
             continue
         active.append(window)
     active.sort(key=lambda w: w.start_utc)
+    if not active:
+        fallback = build_unassigned_window_for_day(db, user_id, target_date)
+        if fallback:
+            return [fallback]
     return active
 
 
@@ -141,3 +146,56 @@ def _as_utc(value: datetime) -> datetime:
     if value.tzinfo:
         return value.astimezone(timezone.utc)
     return value.replace(tzinfo=timezone.utc)
+
+
+def user_has_unassigned_access(db: Session, user_id: int) -> bool:
+    return bool(
+        db.query(User.allow_unassigned_sessions)
+        .filter(User.id == user_id, User.allow_unassigned_sessions.is_(True))
+        .scalar()
+    )
+
+
+def build_unassigned_window_for_day(db: Session, user_id: int, target_date: date) -> Optional[ShiftWindow]:
+    if not user_has_unassigned_access(db, user_id):
+        return None
+
+    user_row = (
+        db.query(User.org_id, User.timezone)
+        .filter(User.id == user_id)
+        .one_or_none()
+    )
+    if not user_row:
+        return None
+
+    org_timezone = (
+        db.query(Organization.timezone)
+        .filter(Organization.id == user_row.org_id)
+        .scalar()
+    )
+    tz_value = _resolve_timezone(user_row.timezone, org_timezone)
+    tz = ZoneInfo(tz_value)
+    start_local = datetime.combine(target_date, datetime.min.time(), tz)
+    end_local = start_local + timedelta(days=1)
+    start_utc = start_local.astimezone(timezone.utc).replace(tzinfo=None)
+    end_utc = end_local.astimezone(timezone.utc).replace(tzinfo=None)
+
+    return ShiftWindow(
+        shift_id=0,
+        assignment_id=0,
+        org_id=user_row.org_id,
+        user_id=user_id,
+        timezone=tz_value,
+        local_start=start_local,
+        local_end=end_local,
+        start_utc=start_utc,
+        end_utc=end_utc,
+    )
+
+
+def _resolve_timezone(user_tz: Optional[str], org_tz: Optional[str]) -> str:
+    if user_tz and user_tz != DEVICE_TIMEZONE:
+        return user_tz
+    if org_tz:
+        return org_tz
+    return settings.default_timezone

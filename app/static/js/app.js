@@ -11,6 +11,11 @@ function resolveDeviceTimezone() {
   }
 }
 
+const summaryFilterState = {
+  range: "day",
+  label: "Today",
+};
+
 const dashboardRuntime = (() => {
   const bootstrapEl = document.getElementById("dashboard-state");
   let bootstrapState = null;
@@ -190,12 +195,19 @@ function renderStatus(state) {
   }
 }
 
-function renderSummary(state) {
-  const metrics = state?.summary || {};
+function setSummaryRangeLabel(text) {
+  const label = document.querySelector("[data-summary-range-label]");
+  if (label) {
+    label.textContent = text || "";
+  }
+}
+
+function applySummaryMetrics(metrics) {
+  const safeMetrics = metrics || {};
   document.querySelectorAll("[data-summary-metric]").forEach((node) => {
     const key = node.getAttribute("data-summary-metric");
     if (!key) return;
-    let value = metrics[key];
+    let value = safeMetrics[key];
     if (key === "net_hours" && typeof value === "number") {
       node.textContent = value.toFixed(2);
     } else if (typeof value === "number") {
@@ -204,13 +216,21 @@ function renderSummary(state) {
   });
   const netDisplay = document.querySelector("[data-summary-net-hours-display]");
   if (netDisplay) {
-    const workMinutes = Number(metrics.work_minutes) || 0;
-    const overbreak = Number(metrics.overbreak_minutes) || 0;
-    const rollcall = Number(metrics.rollcall_deduction_minutes) || 0;
+    const workMinutes = Number(safeMetrics.work_minutes) || 0;
+    const overbreak = Number(safeMetrics.overbreak_minutes) || 0;
+    const rollcall = Number(safeMetrics.rollcall_deduction_minutes) || 0;
     const cappedWork = Math.min(480, Math.max(0, workMinutes));
     const netMinutes = Math.max(0, cappedWork - overbreak - rollcall);
     netDisplay.textContent = formatHoursMinutes(netMinutes);
   }
+}
+
+function renderSummary(state) {
+  if (summaryFilterState.range !== "day") {
+    return;
+  }
+  applySummaryMetrics(state?.summary || {});
+  setSummaryRangeLabel("Today");
 }
 
 function renderActivityLog(state) {
@@ -425,6 +445,96 @@ function initTimezoneControls() {
   renderTimezoneLabel();
 }
 
+function buildSummaryRangeLabel(rangeMeta) {
+  const mode = (rangeMeta?.mode || summaryFilterState.range || "day").toLowerCase();
+  if (mode === "day") return "Today";
+  if (mode === "week") return "Last 7 days";
+  if (mode === "month") return "Last 30 days";
+  if (mode === "custom" && rangeMeta?.start && rangeMeta?.end) {
+    return `${rangeMeta.start} – ${rangeMeta.end}`;
+  }
+  return summaryFilterState.label || "Today";
+}
+
+function initSummaryFilters() {
+  const container = document.querySelector("[data-summary-filter]");
+  if (!container) return;
+  const rangeSelect = container.querySelector("[data-summary-range]");
+  const customFields = container.querySelector("[data-summary-custom]");
+  const startInput = container.querySelector("[data-summary-start]");
+  const endInput = container.querySelector("[data-summary-end]");
+  const applyBtn = container.querySelector("[data-summary-apply]");
+  const statusEl = container.querySelector("[data-summary-filter-status]");
+
+  const setStatus = (message, variant = "") => {
+    if (!statusEl) return;
+    statusEl.textContent = message || "";
+    if (message) {
+      statusEl.dataset.variant = variant;
+    } else {
+      delete statusEl.dataset.variant;
+    }
+  };
+
+  const toggleCustom = () => {
+    if (!customFields) return;
+    const isCustom = rangeSelect?.value === "custom";
+    customFields.hidden = !isCustom;
+    if (!isCustom) {
+      setStatus("");
+    }
+  };
+
+  const fetchSummary = async (mode, start, end) => {
+    const params = new URLSearchParams({ window: mode });
+    if (mode === "custom") {
+      if (!start || !end) {
+        setStatus("Select start and end dates for custom range.", "error");
+        return;
+      }
+      params.set("start_date", start);
+      params.set("end_date", end);
+    }
+    setStatus("Loading…");
+    try {
+      const res = await fetch(`/api/dashboard/summary?${params.toString()}`);
+      if (!res.ok) {
+        const message = await extractErrorMessage(res, "Unable to load summary");
+        throw new Error(message);
+      }
+      const data = await res.json();
+      applySummaryMetrics(data.summary || {});
+      const label = buildSummaryRangeLabel(data.range);
+      summaryFilterState.range = data.range?.mode || mode;
+      summaryFilterState.start = data.range?.start;
+      summaryFilterState.end = data.range?.end;
+      summaryFilterState.label = label;
+      setSummaryRangeLabel(label);
+      setStatus("");
+    } catch (err) {
+      console.error(err);
+      setStatus(err.message || "Unable to load summary", "error");
+    }
+  };
+
+  rangeSelect?.addEventListener("change", () => {
+    toggleCustom();
+    const mode = rangeSelect.value;
+    if (mode !== "custom") {
+      fetchSummary(mode);
+    }
+  });
+
+  applyBtn?.addEventListener("click", () => {
+    const start = startInput?.value;
+    const end = endInput?.value;
+    fetchSummary("custom", start, end);
+  });
+
+  toggleCustom();
+  setSummaryRangeLabel(buildSummaryRangeLabel(summaryFilterState));
+}
+
 function wireSessionButtons() {
   const actionButtons = document.querySelectorAll("[data-action]");
   if (!actionButtons.length) return;
@@ -631,6 +741,7 @@ document.addEventListener("DOMContentLoaded", () => {
   startDashboardAutoRefresh();
   initProfilePage();
   initTimezoneControls();
+  initSummaryFilters();
   initAdminUsersPage();
 });
 

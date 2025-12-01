@@ -69,6 +69,24 @@
         <header>
             <h2>Operational Summary</h2>
             <p class="muted">Lunch, break, and roll-call insights.</p>
+            <div class="summary-filter" data-summary-filter>
+                <label>
+                    <span>Range</span>
+                    <select data-summary-range>
+                        <option value="day" selected>Today</option>
+                        <option value="week">Last 7 days</option>
+                        <option value="month">Last 30 days</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </label>
+                <div class="summary-filter-custom" data-summary-custom hidden>
+                    <input type="date" data-summary-start>
+                    <input type="date" data-summary-end>
+                    <button type="button" data-summary-apply>Apply</button>
+                </div>
+                <p class="summary-filter-status" data-summary-filter-status></p>
+                <p class="summary-range-label" data-summary-range-label>Today</p>
+            </div>
         </header>
         <table class="insights-table">
             <tbody>

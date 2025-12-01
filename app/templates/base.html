@@ -19,6 +19,7 @@
         <a href="/reports">Reports</a>
         {% if user.role in ["OWNER", "ADMIN"] %}
         <a href="/admin">Admin</a>
+        <a href="/admin/shifts">Shifts</a>
         {% endif %}
         <form action="/logout" method="post" style="display:inline">
             <button type="submit">Logout</button>

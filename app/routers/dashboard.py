@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import RollCall, User, WorkSession
-from ..services.attendance import build_summary_for_day
+from ..services.attendance import build_summary_for_day, build_summary_for_range
 from ..services.reporting import get_user_summary
 from ..config import get_settings
 from ..constants import DEVICE_TIMEZONE
@@ -50,6 +50,12 @@ def _day_window(target: date | None = None) -> tuple[datetime, datetime]:
     start = datetime.combine(target, datetime.min.time())
     end = start + timedelta(days=1)
     return start, end
+
+
+def _parse_iso_date(value: str | None) -> date:
+    if not value:
+        raise ValueError("Date value is required")
+    return date.fromisoformat(value)
 
 
 def _event_label(session_type: str, phase: str) -> str:
@@ -312,6 +318,53 @@ async def dashboard_state_api(request: Request, db: Session = Depends(get_db)):
     if not user_session:
         raise HTTPException(status_code=401, detail="Not authenticated")
     payload = _build_dashboard_payload(db, user_session)
+    return JSONResponse(payload)
+
+
+@router.get("/api/dashboard/summary")
+async def dashboard_summary_api(
+    request: Request,
+    window: str = "day",
+    start_date: str | None = None,
+    end_date: str | None = None,
+    db: Session = Depends(get_db),
+):
+    user_session = _ensure_auth(request)
+    if not user_session:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    mode = (window or "day").lower()
+    today = date.today()
+
+    if mode == "day":
+        window_start = window_end = today
+        summary = build_summary_for_day(db, user_session["id"], today)
+    elif mode == "week":
+        window_end = today
+        window_start = today - timedelta(days=6)
+        summary = build_summary_for_range(db, user_session["id"], window_start, window_end)
+    elif mode == "month":
+        window_end = today
+        window_start = today - timedelta(days=29)
+        summary = build_summary_for_range(db, user_session["id"], window_start, window_end)
+    elif mode == "custom":
+        try:
+            window_start = _parse_iso_date(start_date)
+            window_end = _parse_iso_date(end_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Valid start and end dates are required for custom ranges")
+        summary = build_summary_for_range(db, user_session["id"], window_start, window_end)
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported range. Use day, week, month, or custom")
+
+    payload = {
+        "summary": summary.dict(),
+        "range": {
+            "mode": mode,
+            "start": window_start.isoformat(),
+            "end": window_end.isoformat(),
+        },
+    }
     return JSONResponse(payload)
 
 
