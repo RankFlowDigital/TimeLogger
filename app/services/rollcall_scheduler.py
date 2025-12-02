@@ -76,7 +76,8 @@ def schedule_roll_calls_for_current_hour(
     response_window = timedelta(minutes=RESPONSE_WINDOW_MINUTES)
 
     scheduled: list[RollCall] = []
-    while len(existing) + len(scheduled) < target_count and active_users:
+    available_users = list(active_users)
+    while len(existing) + len(scheduled) < target_count and available_users:
         if first_new_roll_call:
             target_time = anchor
             first_new_roll_call = False
@@ -92,10 +93,10 @@ def schedule_roll_calls_for_current_hour(
         if target_time > latest_allowed_start:
             break
 
-        user = choice(active_users)
-        if _already_has_rollcall(existing + scheduled, user.id):
-            active_users.remove(user)
-            continue
+        user = choice(available_users)
+        available_users.remove(user)
+        if not available_users:
+            available_users = list(active_users)
 
         roll_call = RollCall(
             org_id=org_id,
@@ -125,10 +126,6 @@ def expire_roll_calls(db: Session, now: datetime | None = None) -> int:
     if pending:
         db.commit()
     return len(pending)
-
-
-def _already_has_rollcall(roll_calls: list[RollCall], user_id: int) -> bool:
-    return any(rc.user_id == user_id for rc in roll_calls)
 
 
 def _get_active_users(db: Session, org_id: int, now: datetime) -> list[User]:

@@ -21,13 +21,18 @@ def _require_user(request: Request) -> dict:
     return user
 
 
-def _require_shift_access(db: Session, user_id: int, *, allow_pre_shift: bool = False) -> None:
-    window = shift_service.get_active_shift_window(db, user_id)
-    if window:
-        return
+def _has_shift_access(db: Session, user_id: int, *, allow_pre_shift: bool = False) -> bool:
+    if shift_service.get_active_shift_window(db, user_id):
+        return True
     if allow_pre_shift and shift_service.can_start_within_pre_shift_window(db, user_id, tolerance_minutes=5):
-        return
+        return True
     if shift_service.user_has_unassigned_access(db, user_id):
+        return True
+    return False
+
+
+def _require_shift_access(db: Session, user_id: int, *, allow_pre_shift: bool = False) -> None:
+    if _has_shift_access(db, user_id, allow_pre_shift=allow_pre_shift):
         return
     raise HTTPException(status_code=400, detail="No active shift scheduled right now. Contact an admin to enable a manual start or assign a shift.")
 
@@ -44,18 +49,48 @@ def _close_open_session(db: Session, user_id: int, session_type: str | None = No
         db.commit()
 
 
-def _start_session(db: Session, user: dict, session_type: str, task_description: str | None = None) -> WorkSession:
+def _start_session(
+    db: Session,
+    user: dict,
+    session_type: str,
+    task_description: str | None = None,
+    source: str = "UI",
+) -> WorkSession:
     session = WorkSession(
         org_id=user["org_id"],
         user_id=user["id"],
         started_at=datetime.utcnow(),
         session_type=session_type,
         task_description=task_description,
-        source="UI",
+        source=source,
     )
     db.add(session)
     db.commit()
     return session
+
+
+def _resume_work_session(db: Session, user: dict, *, source: str) -> WorkSession | None:
+    open_work = (
+        db.query(WorkSession)
+        .filter(
+            WorkSession.user_id == user["id"],
+            WorkSession.session_type == "WORK",
+            WorkSession.ended_at.is_(None),
+        )
+        .one_or_none()
+    )
+    if open_work:
+        return None
+    if not _has_shift_access(db, user["id"]):
+        return None
+    last_work = (
+        db.query(WorkSession)
+        .filter(WorkSession.user_id == user["id"], WorkSession.session_type == "WORK")
+        .order_by(WorkSession.started_at.desc())
+        .first()
+    )
+    task_description = last_work.task_description if last_work else None
+    return _start_session(db, user, "WORK", task_description, source)
 
 
 def _today_window() -> tuple[datetime, datetime]:
@@ -153,7 +188,8 @@ async def end_lunch(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="No lunch in progress")
     open_lunch.ended_at = datetime.utcnow()
     db.commit()
-    return JSONResponse({"status": "lunch_ended"})
+    resumed = _resume_work_session(db, user, source="AUTO_LUNCH_END") is not None
+    return JSONResponse({"status": "lunch_ended", "work_resumed": resumed})
 
 
 @router.post("/start-break")
@@ -193,4 +229,5 @@ async def end_break(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail="No break in progress")
     open_break.ended_at = datetime.utcnow()
     db.commit()
-    return JSONResponse({"status": "break_ended"})
+    resumed = _resume_work_session(db, user, source="AUTO_SHORT_BREAK_END") is not None
+    return JSONResponse({"status": "break_ended", "work_resumed": resumed})
